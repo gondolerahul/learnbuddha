@@ -1,0 +1,12 @@
+{
+  "kit": "zen-board-v1",
+  "duration": 17,
+  "seed": 5,
+  "elements": [
+    { "id": "h", "type": "Heading", "at": 0.2, "until": 16.5, "props": { "text": "From data to an estimate" } },
+    { "id": "flow", "type": "Flow", "at": 0.9, "until": 9.5, "props": { "nodes": [ { "id": "d", "label": "Sample data", "x": 230, "y": 300 }, { "id": "m", "label": "Sample mean x̄", "x": 640, "y": 300 }, { "id": "v", "label": "Spread around x̄", "x": 1050, "y": 300 } ], "edges": [ { "from": "d", "to": "m", "label": "average" }, { "from": "m", "to": "v", "label": "squared gaps" } ] } },
+    { "id": "nl", "type": "NumberLine", "at": 4.5, "until": 9.5, "props": { "x": 160, "y": 520, "w": 960, "range": [0, 10], "step": 1, "marks": [ { "value": 3, "label": "x̄", "color": "accent" }, { "value": 5, "label": "μ", "color": "indigo" } ] } },
+    { "id": "sbs", "type": "SideBySide", "at": 10.0, "props": { "y": 140, "left": { "title": "Divide by n", "items": ["Biased: too small on average", "Fine for the whole population"] }, "right": { "title": "Divide by n − 1", "items": ["Unbiased estimate", "Use it for samples"] } } },
+    { "id": "pb", "type": "ProgressBar", "at": 0, "props": { "from": 0.2, "value": 0.4 } }
+  ]
+}

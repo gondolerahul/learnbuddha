@@ -1,0 +1,133 @@
+{
+ "kit": "zen-board-v1",
+ "duration": 26,
+ "seed": 13,
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "at": 0.3,
+   "fixed": true,
+   "props": {
+    "text": "One pump powers the proximal tubule"
+   }
+  },
+  {
+   "id": "ep",
+   "type": "Epithelium",
+   "at": 0.8,
+   "props": {
+    "x": 640,
+    "y": 420,
+    "w": 1100,
+    "h": 420,
+    "cells": 2,
+    "brushBorder": true,
+    "lumenLabel": "Tubular lumen",
+    "cellLabel": "PCT cell",
+    "bloodLabel": "Capillary",
+    "transporters": [
+     {
+      "kind": "pump",
+      "side": "basolateral",
+      "pos": 0.3,
+      "carries": [
+       "Na+",
+       "K+"
+      ],
+      "label": "Na+/K+-ATPase keeps cell Na+ low",
+      "at": 2.5
+     },
+     {
+      "kind": "cotransporter",
+      "side": "apical",
+      "pos": 0.22,
+      "carries": [
+       "Na+",
+       "glucose"
+      ],
+      "label": "SGLT2",
+      "at": 7.0
+     },
+     {
+      "kind": "exchanger",
+      "side": "apical",
+      "pos": 0.72,
+      "carries": [
+       "Na+",
+       "H+"
+      ],
+      "label": "NHE3",
+      "at": 11.0
+     },
+     {
+      "kind": "channel",
+      "side": "apical",
+      "pos": 0.38,
+      "carries": [
+       "water"
+      ],
+      "label": "AQP1",
+      "at": 15.0
+     },
+     {
+      "kind": "cotransporter",
+      "side": "basolateral",
+      "pos": 0.75,
+      "carries": [
+       "glucose"
+      ],
+      "label": "GLUT2",
+      "at": 9.0
+     }
+    ],
+    "paracellular": {
+     "kind": "water",
+     "at": 16.0
+    }
+   }
+  },
+  {
+   "id": "iso",
+   "type": "Callout",
+   "at": 20.0,
+   "props": {
+    "title": "Isotonic",
+    "text": "Water follows salt: ~65% reabsorbed here.",
+    "x": 64,
+    "y": 520,
+    "w": 210
+   }
+  }
+ ],
+ "camera": [
+  {
+   "t": 2.2,
+   "x": 880,
+   "y": 320,
+   "zoom": 1.5,
+   "dur": 2.0
+  },
+  {
+   "t": 6.6,
+   "x": 430,
+   "y": 300,
+   "zoom": 1.5,
+   "dur": 2.2
+  },
+  {
+   "t": 14.6,
+   "x": 500,
+   "y": 420,
+   "zoom": 1.3,
+   "dur": 2.0
+  },
+  {
+   "t": 19.4,
+   "x": 640,
+   "y": 380,
+   "zoom": 1.0,
+   "dur": 2.4
+  }
+ ]
+}

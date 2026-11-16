@@ -1,0 +1,10 @@
+{
+  "name": "learnbuddha",
+  "private": true,
+  "workspaces": ["renderer", "frontend"],
+  "scripts": {
+    "build:renderer": "npm run build -w @learnbuddha/stylekit",
+    "dev:web": "npm run dev -w frontend",
+    "build:web": "npm run build -w frontend"
+  }
+}

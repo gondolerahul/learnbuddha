@@ -1,0 +1,1945 @@
+{
+ "$comment": "Single source of truth for Style Kit component props. The Python pipeline validates every scene spec against these schemas; the prompt shows them to Claude. Logical canvas is 1280x720, origin top-left. Colors are token names: ink, inkSoft, muted, accent, indigo, sage, ochre (or #hex).",
+ "common": {
+  "id": "unique string, used by `target`/`from`/`to` references",
+  "type": "component name below",
+  "at": "seconds from scene start when the entrance begins",
+  "until": "optional seconds when it fades out (0.35s); omit to stay to the end",
+  "dur": "optional entrance duration override (seconds)",
+  "fixed": "optional true = ignore camera moves",
+  "motion": "Any element may also take `motion`: [{cue|at, dx, dy | x, y, scale, rotate, opacity, dur}] to move/scale/turn it (each key starts a smooth move lasting dur, default 1.2 s; x/y = new centre), and `loop`: bob|float|pulse|breathe|spin|sway|shake for an idle animation after its entrance (`loopSpeed` scales it). Any element may also take `depth` (-1 far … 0 the subject … 1 near): it sets parallax when the camera moves and which plane depth of field blurs (Landscape defaults to -0.7, Guide to 0.35)."
+ },
+ "components": {
+  "TitleCard": {
+   "description": "Full-width opening title, hand-written, with a vermilion brush underline. Use once, at the start of a lesson's first scene. Fade it out (until) before other content appears.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string",
+      "maxLength": 60
+     },
+     "subtitle": {
+      "type": "string",
+      "maxLength": 80
+     },
+     "y": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Heading": {
+   "description": "Top-of-frame heading (default x=64, y=44) with short accent underline. One per idea/shot.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 48
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "align": {
+      "enum": [
+       "left",
+       "center",
+       "right"
+      ]
+     },
+     "size": {
+      "enum": [
+       "md",
+       "lg",
+       "xl"
+      ]
+     },
+     "underline": {
+      "type": "boolean"
+     },
+     "color": {
+      "type": "string"
+     },
+     "maxWidth": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Text": {
+   "description": "A short hand-written label or sentence, written on left-to-right. (x,y) is the TOP-LEFT of the block for align=left, top-center for center. Wraps at maxWidth; auto-shrinks to fit maxLines.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 140
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md",
+       "lg",
+       "xl"
+      ]
+     },
+     "align": {
+      "enum": [
+       "left",
+       "center",
+       "right"
+      ]
+     },
+     "font": {
+      "enum": [
+       "hand",
+       "serif"
+      ]
+     },
+     "bold": {
+      "type": "boolean"
+     },
+     "color": {
+      "type": "string"
+     },
+     "maxWidth": {
+      "type": "number"
+     },
+     "maxLines": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6
+     }
+    },
+    "required": [
+     "text",
+     "x",
+     "y"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "EquationWrite": {
+   "description": "A formula written stroke-by-stroke in the serif/math face. Use plain Unicode maths (² ³ √ π Σ μ σ Δ ≈ ≠ ≤ ≥ ± × ÷ − → x̄ ½). No LaTeX, no subscript letters (write x_i as 'xi' or avoid).",
+   "props": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 60
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "enum": [
+       "md",
+       "lg",
+       "xl"
+      ]
+     },
+     "align": {
+      "enum": [
+       "left",
+       "center",
+       "right"
+      ]
+     },
+     "color": {
+      "type": "string"
+     },
+     "maxWidth": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "text",
+     "x",
+     "y"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "BulletReveal": {
+   "description": "A list of 2–5 short points, each revealed with a dot. Give `times` (absolute scene seconds, one per item) to land each bullet on the narration word that introduces it.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "items": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "maxLength": 70
+      },
+      "minItems": 1,
+      "maxItems": 6
+     },
+     "times": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "gap": {
+      "type": "number"
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md",
+       "lg"
+      ]
+     },
+     "maxWidth": {
+      "type": "number"
+     },
+     "highlight": {
+      "type": "array",
+      "items": {
+       "type": "integer"
+      }
+     },
+     "color": {
+      "type": "string"
+     },
+     "bulletColor": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Callout": {
+   "description": "A sticky note (default top-right, w=380) for the key idea, a definition, or a 'watch out'. (x,y) is its top-left.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 160
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "tone": {
+      "enum": [
+       "note",
+       "accent"
+      ]
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md"
+      ]
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Counter": {
+   "description": "A number that counts from `from` to `to` (big serif figure). (x,y) is top-center by default.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "number"
+     },
+     "to": {
+      "type": "number"
+     },
+     "decimals": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+     },
+     "prefix": {
+      "type": "string"
+     },
+     "suffix": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "enum": [
+       "lg",
+       "xl",
+       "title"
+      ]
+     },
+     "align": {
+      "enum": [
+       "left",
+       "center",
+       "right"
+      ]
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "to"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Table": {
+   "description": "A small table (≤5 rows × ≤4 cols), first row is the header. Rows appear one by one.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "rows": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "maxLength": 40
+       }
+      },
+      "minItems": 1,
+      "maxItems": 7
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "colWidths": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "header": {
+      "type": "boolean"
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md"
+      ]
+     },
+     "rowHeight": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "rows"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Underline": {
+   "description": "Hand-drawn accent underline under a `target` element (or explicit x,y,w box). Use on the narration word that stresses it.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "target": {
+      "type": "string"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "double": {
+      "type": "boolean"
+     },
+     "offset": {
+      "type": "number"
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "CircleHighlight": {
+   "description": "Hand-drawn ellipse around a `target` element (or explicit x,y,w,h box).",
+   "props": {
+    "type": "object",
+    "properties": {
+     "target": {
+      "type": "string"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "pad": {
+      "type": "number"
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "MarkerHighlight": {
+   "description": "Translucent highlighter swipe behind a `target` element (or box).",
+   "props": {
+    "type": "object",
+    "properties": {
+     "target": {
+      "type": "string"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "Arrow": {
+   "description": "Curved hand-drawn arrow. `from`/`to` are element ids (snaps to their edges) or [x,y] points. Optional small label at the midpoint.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      ]
+     },
+     "to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      ]
+     },
+     "curve": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "color": {
+      "type": "string"
+     },
+     "labelColor": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "from",
+     "to"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Box": {
+   "description": "A sketchy rectangle with a centered label. (x,y) is top-left.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "label": {
+      "type": "string",
+      "maxLength": 60
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "fill": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "color": {
+      "type": "string"
+     },
+     "labelColor": {
+      "type": "string"
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md",
+       "lg"
+      ]
+     }
+    },
+    "required": [
+     "x",
+     "y"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Flow": {
+   "description": "A diagram of 2–6 labelled nodes joined by arrows; nodes appear first, then edges. Node (x,y) is its CENTER; default node size 210x92. Keep ≥ 260px between node centers horizontally.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "label": {
+         "type": "string",
+         "maxLength": 40
+        },
+        "x": {
+         "type": "number"
+        },
+        "y": {
+         "type": "number"
+        },
+        "w": {
+         "type": "number"
+        },
+        "h": {
+         "type": "number"
+        },
+        "color": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "label",
+        "x",
+        "y"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "edges": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "from": {
+         "type": "string"
+        },
+        "to": {
+         "type": "string"
+        },
+        "label": {
+         "type": "string",
+         "maxLength": 30
+        },
+        "curve": {
+         "type": "number"
+        },
+        "color": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "from",
+        "to"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "fill": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md"
+      ]
+     }
+    },
+    "required": [
+     "nodes"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "AxesPlot": {
+   "description": "Axes with ticks plus 1–3 series drawn progressively. A series is either `fn` (expression in x: + - * / ^, sin cos tan exp log sqrt abs, pi, e; e.g. \"x^2/4\", \"sin(x)\") or `points` [[x,y],...]. kind: line | points | bars. (x,y,w,h) is the plot area.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "xRange": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "yRange": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "xLabel": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "yLabel": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "ticks": {
+      "type": "boolean"
+     },
+     "xTicks": {
+      "type": "integer"
+     },
+     "yTicks": {
+      "type": "integer"
+     },
+     "series": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "enum": [
+          "line",
+          "points",
+          "bars"
+         ]
+        },
+        "fn": {
+         "type": "string",
+         "maxLength": 60
+        },
+        "domain": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        },
+        "points": {
+         "type": "array",
+         "items": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+         },
+         "maxItems": 60
+        },
+        "color": {
+         "type": "string"
+        },
+        "label": {
+         "type": "string",
+         "maxLength": 24
+        },
+        "at": {
+         "type": "number"
+        },
+        "dur": {
+         "type": "number"
+        }
+       },
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "xRange",
+     "yRange"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "NumberLine": {
+   "description": "A horizontal number line with ticks and labelled marks that pop in (optionally each at absolute time `at`).",
+   "props": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "range": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "step": {
+      "type": "number"
+     },
+     "marks": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+       "type": "object",
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "label": {
+         "type": "string",
+         "maxLength": 16
+        },
+        "color": {
+         "type": "string"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "value"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "range"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "BarChart": {
+   "description": "2–8 labelled bars growing from a baseline. (x,y,w,h) is the bar area; labels sit below.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "bars": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+       "type": "object",
+       "properties": {
+        "label": {
+         "type": "string",
+         "maxLength": 16
+        },
+        "value": {
+         "type": "number"
+        },
+        "color": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "label",
+        "value"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "max": {
+      "type": "number"
+     },
+     "suffix": {
+      "type": "string"
+     },
+     "showValues": {
+      "type": "boolean"
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "bars"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "SideBySide": {
+   "description": "Two-column comparison (titles + up to 4 bullets each) with a divider; fills the frame below the heading.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "enum": [
+       "sm",
+       "md"
+      ]
+     },
+     "left": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string",
+        "maxLength": 30
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 60
+        },
+        "maxItems": 4
+       },
+       "color": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "title",
+       "items"
+      ],
+      "additionalProperties": false
+     },
+     "right": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string",
+        "maxLength": 30
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 60
+        },
+        "maxItems": 4
+       },
+       "color": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "title",
+       "items"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "left",
+     "right"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "ProgressBar": {
+   "description": "Thin lesson-progress bar at the very bottom (value 0..1, animates from `from`). Usually added automatically.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "number"
+     },
+     "from": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "value"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "RecapCard": {
+   "description": "Full-frame 'back to the lesson' card. Used automatically for resume recaps.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "line": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "FrozenFrame": {
+   "description": "ANSWER CLIPS ONLY. Re-renders the paused lesson scene at time t as the backdrop, holds it, then dims it (and optionally zooms toward cx,cy) so annotations can grow out of it. The pipeline fills `spec` itself — never write it.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "t": {
+      "type": "number"
+     },
+     "dim": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 0.95
+     },
+     "hold": {
+      "type": "number"
+     },
+     "zoom": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 2.5
+     },
+     "cx": {
+      "type": "number"
+     },
+     "cy": {
+      "type": "number"
+     },
+     "spec": {
+      "type": "object"
+     }
+    },
+    "required": [
+     "t"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Prop": {
+   "description": "One illustration from the library, with a gentle built-in idle animation (sun rays turn, waves roll, heart beats, gears spin). (x,y) is its CENTRE; size = height in px (default 160). Other elements can target its anchors as \"id.anchor\" (every prop has center/top/bottom/left/right plus its own, see the catalog). `state` 0–1 drives fill levels, growth or glow; `stateKeys` animate it. `talk` moves its mouth with the narration (Storybook faces).",
+   "props": {
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 700
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "labelColor": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string"
+     },
+     "state": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+     },
+     "stateKeys": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "at": {
+         "type": "number"
+        },
+        "v": {
+         "type": "number"
+        },
+        "dur": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "entrance": {
+      "enum": [
+       "pop",
+       "grow",
+       "fade",
+       "drop",
+       "rise",
+       "none"
+      ]
+     },
+     "flip": {
+      "type": "boolean"
+     },
+     "rotate": {
+      "type": "number"
+     },
+     "face": {
+      "type": "boolean"
+     },
+     "talk": {
+      "type": "boolean"
+     },
+     "mood": {
+      "enum": [
+       "happy",
+       "sad",
+       "wow"
+      ]
+     }
+    },
+    "required": [
+     "kind",
+     "x",
+     "y"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Particles": {
+   "description": "A continuous stream of small things moving along a path: evaporating vapour, falling rain, blood cells, electrons, nutrients, light. `path` points are [x,y], \"elementId\" or \"elementId.anchor\" (2 points + optional `curve`, or up to 12 points for a smooth route). `spread` widens the stream sideways (e.g. rain 60–90); `speed` px/s. Kinds: dot, drop, vapor, bubble, snow, spark, arrow, rbc, wbc, water, molecule, oxygen, co2, glucose, salt, urea, ion, electron, photon, heat, leaf, nutrient, or any prop kind (drawn small).",
+   "props": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        }
+       ]
+      },
+      "minItems": 2,
+      "maxItems": 12
+     },
+     "curve": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+     },
+     "kind": {
+      "type": "string"
+     },
+     "count": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 60
+     },
+     "speed": {
+      "type": "number",
+      "minimum": 5,
+      "maximum": 600
+     },
+     "size": {
+      "type": "number",
+      "minimum": 3,
+      "maximum": 80
+     },
+     "spread": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 200
+     },
+     "wiggle": {
+      "type": "number"
+     },
+     "color": {
+      "type": "string"
+     },
+     "showPath": {
+      "enum": [
+       "none",
+       "dashed",
+       "line"
+      ]
+     },
+     "pathColor": {
+      "type": "string"
+     },
+     "reverse": {
+      "type": "boolean"
+     },
+     "fade": {
+      "type": "boolean"
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "labelAt": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+     },
+     "labelDx": {
+      "type": "number"
+     },
+     "labelDy": {
+      "type": "number"
+     },
+     "labelColor": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Tube": {
+   "description": "A vessel, pipe, tubule, root or river drawn along a path (it draws itself in), optionally with things flowing inside (`flow`). Anchors: start, q1, middle, q3, end.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        }
+       ]
+      },
+      "minItems": 2,
+      "maxItems": 12
+     },
+     "curve": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+     },
+     "width": {
+      "type": "number",
+      "minimum": 4,
+      "maximum": 120
+     },
+     "color": {
+      "type": "string"
+     },
+     "wall": {
+      "type": "string"
+     },
+     "flow": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "count": {
+        "type": "number"
+       },
+       "speed": {
+        "type": "number"
+       },
+       "size": {
+        "type": "number"
+       },
+       "color": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false
+     },
+     "drawDur": {
+      "type": "number"
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "labelAt": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+     },
+     "labelDx": {
+      "type": "number"
+     },
+     "labelDy": {
+      "type": "number"
+     },
+     "labelColor": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Journey": {
+   "description": "One character or object travelling along a path over `travel` seconds (or looping): a raindrop's trip through the cycle, food through the gut, a red blood cell round the body. Optional dotted `trail`.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "path": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        }
+       ]
+      },
+      "minItems": 2,
+      "maxItems": 12
+     },
+     "curve": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+     },
+     "size": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 300
+     },
+     "travel": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 60
+     },
+     "loop": {
+      "type": "boolean"
+     },
+     "trail": {
+      "type": "boolean"
+     },
+     "trailColor": {
+      "type": "string"
+     },
+     "rotateAlong": {
+      "type": "boolean"
+     },
+     "bob": {
+      "type": "number"
+     },
+     "color": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "labelColor": {
+      "type": "string"
+     },
+     "face": {
+      "type": "boolean"
+     },
+     "talk": {
+      "type": "boolean"
+     },
+     "mood": {
+      "enum": [
+       "happy",
+       "sad",
+       "wow"
+      ]
+     },
+     "state": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "kind",
+     "path"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Label": {
+   "description": "A short label at (x,y) (text centre) with a leader line and dot pointing at `target` (\"id\", \"id.anchor\" or [x,y]). The way to name parts of an illustration. Keep labels clear of the drawing.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 60
+     },
+     "target": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      ]
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "anyOf": [
+       {
+        "enum": [
+         "sm",
+         "md",
+         "lg"
+        ]
+       },
+       {
+        "type": "number"
+       }
+      ]
+     },
+     "maxWidth": {
+      "type": "number"
+     },
+     "color": {
+      "type": "string"
+     },
+     "textColor": {
+      "type": "string"
+     },
+     "dot": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "text",
+     "target",
+     "x",
+     "y"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Guide": {
+   "description": "Buddy, the friendly guide character for young learners: (x,y) = centre, size = height (default 190). Talks (mouth moves) while the narration plays, blinks, and looks at what it points to. pose: idle | wave | point | think | cheer; change it over time with `poses`. Storybook kit only.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "type": "number",
+      "minimum": 80,
+      "maximum": 400
+     },
+     "pose": {
+      "enum": [
+       "idle",
+       "wave",
+       "point",
+       "think",
+       "cheer"
+      ]
+     },
+     "poses": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "at": {
+         "type": "number"
+        },
+        "pose": {
+         "enum": [
+          "idle",
+          "wave",
+          "point",
+          "think",
+          "cheer"
+         ]
+        }
+       },
+       "required": [
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "pointAt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      ]
+     },
+     "lookAt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      ]
+     },
+     "color": {
+      "type": "string"
+     },
+     "talk": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "x",
+     "y"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "Landscape": {
+   "description": "A full-frame living landscape (sky, sun, land, sea with rolling waves, mountains, a flowing river, trees) that builds itself in. Put it first. Anchors: sky, sun, sea, seaSurface, land, ground, mountain, mountainSide, river, riverMouth, cloud, cloudLeft, cloudRight. Horizon (default 470) is where land meets sky.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "horizon": {
+      "type": "number",
+      "minimum": 300,
+      "maximum": 620
+     },
+     "sea": {
+      "enum": [
+       "left",
+       "right",
+       "none"
+      ]
+     },
+     "mountains": {
+      "enum": [
+       "left",
+       "right",
+       "none"
+      ]
+     },
+     "sun": {
+      "enum": [
+       "left",
+       "right",
+       "none"
+      ]
+     },
+     "river": {
+      "type": "boolean"
+     },
+     "trees": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 8
+     },
+     "clouds": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 4
+     },
+     "time": {
+      "enum": [
+       "day",
+       "dusk",
+       "night"
+      ]
+     },
+     "ground": {
+      "enum": [
+       "grass",
+       "sand",
+       "snow",
+       "desert"
+      ]
+     },
+     "faces": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "Nephron": {
+   "description": "An accurate schematic nephron (≈620×540 px at scale 1, centred at x,y): afferent/efferent arterioles, glomerulus in Bowman's capsule, proximal tubule, loop of Henle (descending/ascending limbs), distal tubule, collecting duct, peritubular capillaries, cortex/medulla zones. `flows` switch on animated processes at given times: blood, filtrate (filtration), reabsorb (glucose/salt/water back to blood), secrete, urine. `highlight` dims everything else. Anchors: glomerulus, capsule, pct, descending, loop, ascending, dct, duct, ductEnd, afferent, efferent, capillary, cortex, medulla.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "scale": {
+      "type": "number",
+      "minimum": 0.4,
+      "maximum": 1.6
+     },
+     "labels": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      ]
+     },
+     "highlight": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      ]
+     },
+     "zones": {
+      "type": "boolean"
+     },
+     "flows": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "at": {
+         "type": "number"
+        },
+        "kind": {
+         "enum": [
+          "blood",
+          "filtrate",
+          "reabsorb",
+          "secrete",
+          "urine"
+         ]
+        }
+       },
+       "required": [
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "Body": {
+   "description": "A human figure with organs inside (centre x,y; size = height, default 560): brain, lungs, heart, liver, stomach, kidneys, intestines, bladder. Show a subset with `organs`, emphasise with `highlight`, name them with `labels`. Anchors: each organ name, kidneyLeft, kidneyRight, head, chest, belly.",
+   "props": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "type": "number",
+      "minimum": 200,
+      "maximum": 700
+     },
+     "organs": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "brain",
+        "lungs",
+        "heart",
+        "liver",
+        "stomach",
+        "kidneys",
+        "intestines",
+        "bladder"
+       ]
+      }
+     },
+     "highlight": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      ]
+     },
+     "labels": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      ]
+     },
+     "xray": {
+      "type": "boolean"
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "Epithelium": {
+   "description": "Cell-level transport across an epithelium (kidney tubule, gut, glands): lumen on the left, 1–3 epithelial cells (apical brush border, nucleus, mitochondria, tight junctions) in the middle, interstitium and a capillary with flowing red cells on the right. Each item of `transporters` appears at its cue on the apical or basolateral membrane (`pos` 0–1 = height) and moves its `carries` through it: ion names (\"Na+\", \"K+\", \"Cl−\", \"H+\", \"Ca2+\", \"HCO3−\") or particle kinds (glucose, water, urea, AA). Cargo moves toward the blood unless toward=\"lumen\"; an exchanger's and a pump's second cargo moves the opposite way (3 Na+ out, 2 K+ in). `paracellular` sends water or ions between the cells. Default box 1080×430 centred at (640,405). Anchors: lumen, cell, nucleus, apical, basolateral, junction, interstitium, blood, transporter0…",
+   "props": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number",
+      "minimum": 500,
+      "maximum": 1180
+     },
+     "h": {
+      "type": "number",
+      "minimum": 250,
+      "maximum": 520
+     },
+     "cells": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 3
+     },
+     "brushBorder": {
+      "type": "boolean"
+     },
+     "lumenLabel": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "cellLabel": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "bloodLabel": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "lumenColor": {
+      "type": "string"
+     },
+     "cellColor": {
+      "type": "string"
+     },
+     "bloodColor": {
+      "type": "string"
+     },
+     "transporters": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "enum": [
+          "pump",
+          "cotransporter",
+          "exchanger",
+          "channel"
+         ]
+        },
+        "side": {
+         "enum": [
+          "apical",
+          "basolateral"
+         ]
+        },
+        "pos": {
+         "type": "number",
+         "minimum": 0,
+         "maximum": 1
+        },
+        "carries": {
+         "type": "array",
+         "items": {
+          "type": "string",
+          "maxLength": 10
+         },
+         "maxItems": 3
+        },
+        "toward": {
+         "enum": [
+          "blood",
+          "lumen"
+         ]
+        },
+        "label": {
+         "type": "string",
+         "maxLength": 50
+        },
+        "color": {
+         "type": "string"
+        },
+        "speed": {
+         "type": "number"
+        },
+        "at": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "kind",
+        "side",
+        "at"
+       ],
+       "additionalProperties": false
+      },
+      "maxItems": 6
+     },
+     "paracellular": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "toward": {
+        "enum": [
+         "blood",
+         "lumen"
+        ]
+       },
+       "at": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "additionalProperties": false
+   }
+  }
+ }
+}

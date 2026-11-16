@@ -1,0 +1,254 @@
+{
+ "kit": "storybook-v1",
+ "duration": 30,
+ "seed": 5,
+ "speech": [
+  [
+   0.4,
+   4.6
+  ],
+  [
+   5.0,
+   10.8
+  ],
+  [
+   11.2,
+   16.6
+  ],
+  [
+   17.0,
+   22.4
+  ],
+  [
+   22.8,
+   29.0
+  ]
+ ],
+ "elements": [
+  {
+   "id": "land",
+   "type": "Landscape",
+   "at": 0,
+   "props": {
+    "sea": "left",
+    "mountains": "right",
+    "sun": "left",
+    "trees": 3,
+    "horizon": 470
+   }
+  },
+  {
+   "id": "h",
+   "type": "Heading",
+   "at": 0.6,
+   "until": 5.2,
+   "props": {
+    "text": "Where does rain come from?",
+    "align": "center",
+    "x": 640
+   },
+   "fixed": true
+  },
+  {
+   "id": "buddy",
+   "type": "Guide",
+   "at": 0.8,
+   "props": {
+    "x": 700,
+    "y": 600,
+    "size": 150,
+    "pose": "wave",
+    "poses": [
+     {
+      "at": 5.2,
+      "pose": "point"
+     },
+     {
+      "at": 11.2,
+      "pose": "think"
+     },
+     {
+      "at": 17.2,
+      "pose": "point"
+     },
+     {
+      "at": 25.5,
+      "pose": "cheer"
+     }
+    ],
+    "pointAt": "land.seaSurface",
+    "lookAt": "cloud"
+   }
+  },
+  {
+   "id": "vapor",
+   "type": "Particles",
+   "at": 5.6,
+   "props": {
+    "path": [
+     "land.seaSurface",
+     [
+      330,
+      330
+     ],
+     [
+      430,
+      210
+     ]
+    ],
+    "kind": "vapor",
+    "count": 18,
+    "speed": 55,
+    "size": 26,
+    "spread": 70,
+    "wiggle": 10,
+    "label": "The sun warms the sea",
+    "labelAt": 0.25,
+    "labelDx": 150,
+    "labelDy": 0
+   }
+  },
+  {
+   "id": "cloud",
+   "type": "Prop",
+   "at": 9.0,
+   "until": 17.6,
+   "props": {
+    "kind": "cloud",
+    "x": 440,
+    "y": 150,
+    "size": 120,
+    "entrance": "grow",
+    "state": 0.4,
+    "stateKeys": [
+     {
+      "at": 11.2,
+      "v": 1,
+      "dur": 3
+     }
+    ],
+    "motion": [
+     {
+      "at": 14.6,
+      "x": 880,
+      "dur": 2.6
+     }
+    ],
+    "talk": false,
+    "depth": 0
+   }
+  },
+  {
+   "id": "lbl-cond",
+   "type": "Label",
+   "at": 12.0,
+   "until": 14.4,
+   "props": {
+    "text": "Tiny drops join up",
+    "target": "cloud.bottom",
+    "x": 440,
+    "y": 300
+   }
+  },
+  {
+   "id": "rainc",
+   "type": "Prop",
+   "at": 17.2,
+   "props": {
+    "kind": "raincloud",
+    "x": 880,
+    "y": 150,
+    "size": 130,
+    "entrance": "fade",
+    "loop": "float"
+   }
+  },
+  {
+   "id": "rain",
+   "type": "Particles",
+   "at": 17.8,
+   "props": {
+    "path": [
+     [
+      880,
+      205
+     ],
+     [
+      880,
+      420
+     ]
+    ],
+    "kind": "drop",
+    "count": 22,
+    "speed": 230,
+    "size": 18,
+    "spread": 80,
+    "label": "Rain!",
+    "labelAt": 0.4,
+    "labelDx": 150,
+    "labelDy": 0
+   }
+  },
+  {
+   "id": "drip",
+   "type": "Journey",
+   "at": 22.8,
+   "props": {
+    "kind": "raindrop",
+    "path": [
+     "land.mountainSide",
+     "land.river",
+     "land.riverMouth",
+     "land.sea"
+    ],
+    "size": 56,
+    "travel": 4.2,
+    "trail": true
+   }
+  },
+  {
+   "id": "lbl-back",
+   "type": "Label",
+   "at": 26.2,
+   "props": {
+    "text": "…and back to the sea",
+    "target": "land.sea",
+    "x": 230,
+    "y": 330
+   }
+  }
+ ],
+ "camera": [
+  {
+   "t": 5.4,
+   "x": 430,
+   "y": 340,
+   "zoom": 1.35,
+   "dur": 2.2
+  },
+  {
+   "t": 11.0,
+   "x": 460,
+   "y": 230,
+   "zoom": 1.6,
+   "dur": 2.0,
+   "focus": 0,
+   "dof": 3
+  },
+  {
+   "t": 15.0,
+   "x": 830,
+   "y": 270,
+   "zoom": 1.4,
+   "dur": 2.6,
+   "dof": 0
+  },
+  {
+   "t": 22.6,
+   "x": 640,
+   "y": 380,
+   "zoom": 1.06,
+   "dur": 2.4
+  }
+ ]
+}

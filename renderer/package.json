@@ -1,0 +1,24 @@
+{
+  "name": "@learnbuddha/stylekit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node dist/cli.mjs selftest"
+  },
+  "dependencies": {
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/kalam": "^5.3.0",
+    "@fontsource/noto-sans-math": "^5.3.0",
+    "@fontsource/source-serif-4": "^5.3.1",
+    "@napi-rs/canvas": "^0.1.65"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "kit": "zen-board-v1",
+  "duration": 12,
+  "seed": 9,
+  "elements": [
+    { "id": "bg", "type": "FrozenFrame", "at": 0, "props": { "t": 9.0, "dim": 0.8, "hold": 0.8, "spec": { "kit": "zen-board-v1", "duration": 16, "seed": 11, "elements": [
+      { "id": "h1", "type": "Heading", "at": 0, "props": { "text": "Two kinds of spread" } },
+      { "id": "pts", "type": "BulletReveal", "at": 0.5, "props": { "items": ["Population variance uses the true mean μ", "Sample variance only has the sample mean x̄"], "y": 170, "maxWidth": 700 } } ] } } },
+    { "id": "q", "type": "Text", "at": 1.6, "props": { "text": "Why does x̄ shrink the spread?", "x": 640, "y": 330, "size": "lg", "align": "center", "bold": true, "color": "accent", "maxWidth": 1000 } },
+    { "id": "nl", "type": "NumberLine", "at": 3.6, "props": { "x": 160, "y": 520, "w": 960, "range": [0, 10], "step": 1, "marks": [ { "value": 2, "label": "data" }, { "value": 3, "label": "data" }, { "value": 4, "label": "x̄", "color": "indigo" }, { "value": 5, "label": "μ", "color": "sage" } ] } },
+    { "id": "c", "type": "Callout", "at": 7.5, "props": { "text": "x̄ is the point that minimises squared gaps to this sample — so gaps to x̄ are never bigger than gaps to μ.", "x": 760, "y": 130, "w": 440 } }
+  ]
+}

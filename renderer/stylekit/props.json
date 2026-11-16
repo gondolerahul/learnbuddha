@@ -1,0 +1,424 @@
+{
+ "sun": {
+  "group": "nature",
+  "aspect": 1,
+  "anchors": [
+   "center",
+   "bottom"
+  ]
+ },
+ "cloud": {
+  "group": "nature",
+  "aspect": 1.7,
+  "anchors": [
+   "center",
+   "bottom",
+   "top"
+  ]
+ },
+ "raincloud": {
+  "group": "nature",
+  "aspect": 1.7,
+  "anchors": [
+   "center",
+   "bottom"
+  ]
+ },
+ "raindrop": {
+  "group": "nature",
+  "aspect": 0.7,
+  "anchors": [
+   "center",
+   "top"
+  ]
+ },
+ "snowflake": {
+  "group": "nature",
+  "aspect": 1,
+  "anchors": []
+ },
+ "lightning": {
+  "group": "nature",
+  "aspect": 0.6,
+  "anchors": []
+ },
+ "mountain": {
+  "group": "nature",
+  "aspect": 1.6,
+  "anchors": [
+   "top",
+   "base",
+   "left",
+   "right"
+  ]
+ },
+ "tree": {
+  "group": "nature",
+  "aspect": 0.8,
+  "anchors": [
+   "top",
+   "roots",
+   "leaves"
+  ]
+ },
+ "pine": {
+  "group": "nature",
+  "aspect": 0.6,
+  "anchors": []
+ },
+ "plant": {
+  "group": "nature",
+  "aspect": 0.8,
+  "anchors": [
+   "leaves",
+   "roots",
+   "soil"
+  ]
+ },
+ "flower": {
+  "group": "nature",
+  "aspect": 0.7,
+  "anchors": [
+   "bloom"
+  ]
+ },
+ "rock": {
+  "group": "nature",
+  "aspect": 1.4,
+  "anchors": []
+ },
+ "sea": {
+  "group": "nature",
+  "aspect": 2.4,
+  "anchors": [
+   "surface",
+   "center",
+   "left",
+   "right"
+  ]
+ },
+ "river": {
+  "group": "nature",
+  "aspect": 2.2,
+  "anchors": [
+   "source",
+   "mouth"
+  ]
+ },
+ "fish": {
+  "group": "nature",
+  "aspect": 1.6,
+  "anchors": []
+ },
+ "bird": {
+  "group": "nature",
+  "aspect": 1.6,
+  "anchors": []
+ },
+ "steam": {
+  "group": "nature",
+  "aspect": 0.8,
+  "anchors": [
+   "base",
+   "top"
+  ]
+ },
+ "moon": {
+  "group": "nature",
+  "aspect": 1,
+  "anchors": []
+ },
+ "star": {
+  "group": "nature",
+  "aspect": 1,
+  "anchors": []
+ },
+ "earth": {
+  "group": "nature",
+  "aspect": 1,
+  "anchors": [
+   "center",
+   "north",
+   "south"
+  ]
+ },
+ "house": {
+  "group": "everyday",
+  "aspect": 1,
+  "anchors": []
+ },
+ "thermometer": {
+  "group": "science",
+  "aspect": 0.4,
+  "anchors": [
+   "bulb",
+   "top"
+  ]
+ },
+ "ice": {
+  "group": "science",
+  "aspect": 1,
+  "anchors": []
+ },
+ "volcano": {
+  "group": "nature",
+  "aspect": 1.5,
+  "anchors": [
+   "crater"
+  ]
+ },
+ "kidney": {
+  "group": "body",
+  "aspect": 0.75,
+  "anchors": [
+   "center",
+   "hilum",
+   "artery",
+   "vein",
+   "ureter",
+   "cortex",
+   "medulla"
+  ]
+ },
+ "heart": {
+  "group": "body",
+  "aspect": 1,
+  "anchors": [
+   "center",
+   "aorta",
+   "left",
+   "right"
+  ]
+ },
+ "lungs": {
+  "group": "body",
+  "aspect": 1.1,
+  "anchors": [
+   "trachea",
+   "left",
+   "right"
+  ]
+ },
+ "brain": {
+  "group": "body",
+  "aspect": 1.25,
+  "anchors": [
+   "center",
+   "front",
+   "back",
+   "stem"
+  ]
+ },
+ "stomach": {
+  "group": "body",
+  "aspect": 0.9,
+  "anchors": [
+   "top",
+   "exit"
+  ]
+ },
+ "bladder": {
+  "group": "body",
+  "aspect": 0.9,
+  "anchors": [
+   "inletLeft",
+   "inletRight",
+   "outlet",
+   "center"
+  ]
+ },
+ "intestine": {
+  "group": "body",
+  "aspect": 1,
+  "anchors": [
+   "start",
+   "end"
+  ]
+ },
+ "liver": {
+  "group": "body",
+  "aspect": 1.5,
+  "anchors": [
+   "center"
+  ]
+ },
+ "rbc": {
+  "group": "body",
+  "aspect": 1,
+  "anchors": []
+ },
+ "wbc": {
+  "group": "body",
+  "aspect": 1,
+  "anchors": []
+ },
+ "platelet": {
+  "group": "body",
+  "aspect": 1.3,
+  "anchors": []
+ },
+ "cell": {
+  "group": "body",
+  "aspect": 1.25,
+  "anchors": [
+   "membrane",
+   "nucleus",
+   "mitochondrion",
+   "er",
+   "cytoplasm"
+  ]
+ },
+ "bacterium": {
+  "group": "body",
+  "aspect": 1.6,
+  "anchors": []
+ },
+ "virus": {
+  "group": "body",
+  "aspect": 1,
+  "anchors": []
+ },
+ "neuron": {
+  "group": "body",
+  "aspect": 2,
+  "anchors": [
+   "body",
+   "axonEnd"
+  ]
+ },
+ "dna": {
+  "group": "body",
+  "aspect": 0.6,
+  "anchors": []
+ },
+ "bone": {
+  "group": "body",
+  "aspect": 2.2,
+  "anchors": []
+ },
+ "eye": {
+  "group": "body",
+  "aspect": 1.6,
+  "anchors": []
+ },
+ "tooth": {
+  "group": "body",
+  "aspect": 0.8,
+  "anchors": []
+ },
+ "atom": {
+  "group": "science",
+  "aspect": 1,
+  "anchors": [
+   "nucleus"
+  ]
+ },
+ "water_molecule": {
+  "group": "science",
+  "aspect": 1.3,
+  "anchors": []
+ },
+ "beaker": {
+  "group": "science",
+  "aspect": 0.85,
+  "anchors": [
+   "top",
+   "liquid"
+  ]
+ },
+ "flask": {
+  "group": "science",
+  "aspect": 0.85,
+  "anchors": [
+   "top"
+  ]
+ },
+ "flame": {
+  "group": "science",
+  "aspect": 0.7,
+  "anchors": [
+   "tip",
+   "base"
+  ]
+ },
+ "magnet": {
+  "group": "science",
+  "aspect": 1,
+  "anchors": [
+   "north",
+   "south"
+  ]
+ },
+ "battery": {
+  "group": "science",
+  "aspect": 0.55,
+  "anchors": [
+   "plus",
+   "minus"
+  ]
+ },
+ "bulb": {
+  "group": "science",
+  "aspect": 0.7,
+  "anchors": [
+   "base"
+  ]
+ },
+ "gear": {
+  "group": "science",
+  "aspect": 1,
+  "anchors": []
+ },
+ "ball": {
+  "group": "everyday",
+  "aspect": 1,
+  "anchors": []
+ },
+ "rocket": {
+  "group": "science",
+  "aspect": 0.6,
+  "anchors": [
+   "nose",
+   "exhaust"
+  ]
+ },
+ "planet": {
+  "group": "science",
+  "aspect": 1.5,
+  "anchors": []
+ },
+ "clock": {
+  "group": "everyday",
+  "aspect": 1,
+  "anchors": []
+ },
+ "apple": {
+  "group": "everyday",
+  "aspect": 0.9,
+  "anchors": []
+ },
+ "book": {
+  "group": "everyday",
+  "aspect": 1.4,
+  "anchors": []
+ },
+ "coin": {
+  "group": "everyday",
+  "aspect": 1,
+  "anchors": []
+ },
+ "car": {
+  "group": "everyday",
+  "aspect": 1.8,
+  "anchors": []
+ },
+ "person": {
+  "group": "everyday",
+  "aspect": 0.55,
+  "anchors": [
+   "head",
+   "hand",
+   "feet"
+  ]
+ }
+}

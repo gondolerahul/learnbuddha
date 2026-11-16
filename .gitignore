@@ -1,0 +1,12 @@
+node_modules/
+.dev/
+backend/.venv/
+backend/media/
+backend/.env
+__pycache__/
+*.pyc
+renderer/dist/
+renderer/out/
+frontend/dist/
+.pytest_cache/
+*.tsbuildinfo

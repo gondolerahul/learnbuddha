@@ -1,0 +1,141 @@
+{
+ "kit": "zen-board-v1",
+ "duration": 18,
+ "seed": 23,
+ "camera": [
+  {
+   "t": 0,
+   "x": 640,
+   "y": 360,
+   "zoom": 1
+  },
+  {
+   "t": 14.5,
+   "x": 760,
+   "y": 380,
+   "zoom": 1.25
+  },
+  {
+   "t": 17,
+   "x": 640,
+   "y": 360,
+   "zoom": 1
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "at": 0.2,
+   "props": {
+    "text": "The correction factor"
+   }
+  },
+  {
+   "id": "eq",
+   "type": "EquationWrite",
+   "at": 1,
+   "props": {
+    "text": "s² = Σ(x − x̄)² / (n − 1)",
+    "x": 70,
+    "y": 140,
+    "size": "lg",
+    "maxWidth": 560
+   },
+   "until": 14.5
+  },
+  {
+   "id": "c1",
+   "type": "CircleHighlight",
+   "at": 4.4,
+   "props": {
+    "target": "eq",
+    "pad": 10
+   },
+   "until": 14.5
+  },
+  {
+   "id": "t1",
+   "type": "Text",
+   "at": 5.4,
+   "props": {
+    "text": "Dividing by n − 1 makes the average squared distance a little bigger.",
+    "x": 70,
+    "y": 260,
+    "size": "sm",
+    "maxWidth": 470,
+    "color": "inkSoft"
+   },
+   "until": 14.5
+  },
+  {
+   "id": "plot",
+   "type": "AxesPlot",
+   "at": 7,
+   "props": {
+    "x": 640,
+    "y": 150,
+    "w": 520,
+    "h": 380,
+    "xRange": [
+     1,
+     10
+    ],
+    "yRange": [
+     0,
+     2.2
+    ],
+    "xLabel": "sample size n",
+    "yLabel": "n / (n − 1)",
+    "series": [
+     {
+      "kind": "line",
+      "fn": "x/(x-1)",
+      "domain": [
+       1.5,
+       10
+      ],
+      "color": "accent",
+      "label": "boost"
+     },
+     {
+      "kind": "points",
+      "points": [
+       [
+        2,
+        2
+       ],
+       [
+        3,
+        1.5
+       ],
+       [
+        5,
+        1.25
+       ],
+       [
+        10,
+        1.11
+       ]
+      ],
+      "color": "indigo"
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar",
+   "type": "Arrow",
+   "at": 12.5,
+   "props": {
+    "from": "t1",
+    "to": [
+     700,
+     210
+    ],
+    "curve": -0.25,
+    "label": "big boost for tiny samples"
+   }
+  }
+ ]
+}

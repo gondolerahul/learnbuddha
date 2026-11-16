@@ -1,0 +1,142 @@
+{
+ "kit": "zen-board-v1",
+ "duration": 30,
+ "seed": 9,
+ "camera": [
+  {
+   "t": 3.2,
+   "x": 470,
+   "y": 250,
+   "zoom": 1.45,
+   "dur": 2
+  },
+  {
+   "t": 10.4,
+   "x": 660,
+   "y": 330,
+   "zoom": 1.1,
+   "dur": 2.4
+  },
+  {
+   "t": 15.4,
+   "x": 719,
+   "y": 453,
+   "zoom": 1.27,
+   "dur": 2
+  },
+  {
+   "t": 22.6,
+   "x": 640,
+   "y": 360,
+   "zoom": 1,
+   "dur": 2.4
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "at": 0.3,
+   "fixed": true,
+   "props": {
+    "text": "Inside one nephron"
+   },
+   "until": 3.2
+  },
+  {
+   "id": "n",
+   "type": "Nephron",
+   "at": 0.8,
+   "props": {
+    "x": 660,
+    "y": 400,
+    "scale": 1.05,
+    "zones": true,
+    "flows": [
+     {
+      "kind": "blood",
+      "at": 3.4
+     },
+     {
+      "kind": "filtrate",
+      "at": 6.6
+     },
+     {
+      "kind": "reabsorb",
+      "at": 13
+     },
+     {
+      "kind": "secrete",
+      "at": 17
+     },
+     {
+      "kind": "urine",
+      "at": 19.4
+     }
+    ]
+   }
+  },
+  {
+   "id": "l-glom",
+   "type": "Label",
+   "at": 4.6,
+   "props": {
+    "text": "Glomerulus: pressure pushes plasma out",
+    "target": "n.glomerulus",
+    "x": 200,
+    "y": 300,
+    "maxWidth": 220
+   },
+   "until": 15.4
+  },
+  {
+   "id": "l-pct",
+   "type": "Label",
+   "at": 12.4,
+   "props": {
+    "text": "Proximal tubule reclaims glucose, salt and water",
+    "target": "n.pct",
+    "x": 1090,
+    "y": 150,
+    "maxWidth": 260
+   },
+   "until": 15.4
+  },
+  {
+   "id": "l-loop",
+   "type": "Label",
+   "at": 16,
+   "props": {
+    "text": "Loop of Henle concentrates",
+    "target": "n.loop",
+    "x": 330,
+    "y": 640,
+    "maxWidth": 240
+   }
+  },
+  {
+   "id": "l-duct",
+   "type": "Label",
+   "at": 19.8,
+   "props": {
+    "text": "Collecting duct → urine",
+    "target": "n.ductEnd",
+    "x": 1090,
+    "y": 560,
+    "maxWidth": 220
+   }
+  },
+  {
+   "id": "sum",
+   "type": "Callout",
+   "at": 23.5,
+   "props": {
+    "title": "Every day",
+    "text": "~180 L filtered, ~1.5 L leaves as urine.",
+    "x": 960,
+    "y": 300,
+    "w": 290
+   }
+  }
+ ]
+}

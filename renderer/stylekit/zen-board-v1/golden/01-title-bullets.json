@@ -1,0 +1,12 @@
+{
+  "kit": "zen-board-v1",
+  "duration": 16,
+  "seed": 11,
+  "elements": [
+    { "id": "title", "type": "TitleCard", "at": 0.3, "until": 4.2, "props": { "title": "Why divide by n − 1?", "subtitle": "Sample variance, gently" } },
+    { "id": "h1", "type": "Heading", "at": 4.6, "props": { "text": "Two kinds of spread" } },
+    { "id": "pts", "type": "BulletReveal", "at": 5.2, "props": { "items": ["Population variance uses the true mean μ", "Sample variance only has the sample mean x̄", "x̄ sits closer to our data than μ does"], "times": [5.2, 7.6, 10.1], "y": 170, "maxWidth": 700 } },
+    { "id": "ul", "type": "Underline", "at": 12.2, "props": { "target": "pts", "x": 0 } },
+    { "id": "note", "type": "Callout", "at": 12.8, "props": { "title": "Key idea", "text": "Measuring spread around x̄ slightly underestimates the true spread.", "x": 840, "y": 180, "w": 370 } }
+  ]
+}
