@@ -74,9 +74,13 @@ PLAN_SCHEMA = {
     "required": ["title", "summary", "level", "audience", "lessons"],
     "additionalProperties": False,
 }
-PLAN_SCHEMA["properties"]["audience"] = {"type": "string", "enum": ["young_child", "child", "teen", "adult", "professional"]}
-PLAN_SCHEMA["properties"]["style"] = {"type": "string", "enum": list(kit.STYLE_GUIDE)}
-PLAN_SCHEMA["required"].append("style")
+# audience and style are written before the lessons (models follow the schema's key order), so the first scene can
+# be scripted in the right style while the rest of the plan is still being written (pipeline.plan_course)
+_p = PLAN_SCHEMA["properties"]
+PLAN_SCHEMA["properties"] = {"title": _p["title"], "summary": _p["summary"], "level": _p["level"],
+                             "audience": {"type": "string", "enum": ["young_child", "child", "teen", "adult", "professional"]},
+                             "style": {"type": "string", "enum": list(kit.STYLE_GUIDE)}, "lessons": _p["lessons"]}
+PLAN_SCHEMA["required"] = ["title", "summary", "level", "audience", "style", "lessons"]
 
 def scene_schema(answer_mode: bool = False) -> dict:
     types = kit.component_names(include_internal=False) + (["FrozenFrame"] if answer_mode else [])
@@ -129,8 +133,21 @@ TUTOR_SCHEMA = {
         "control": {"type": "string", "enum": ["none", "slower", "faster", "repeat", "skip", "resume", "pause"]},
         "visual": {"type": "boolean"},
         "concept": {"type": "string"},
+        "marks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string"},
+                    "mark": {"type": "string", "enum": ["circle", "arrow", "underline"]},
+                    "label": {"type": "string"},
+                },
+                "required": ["target", "mark", "label"],
+                "additionalProperties": False,
+            },
+        },
     },
-    "required": ["kind", "say", "control", "visual", "concept"],
+    "required": ["kind", "say", "control", "visual", "concept", "marks"],
     "additionalProperties": False,
 }
 
@@ -145,6 +162,8 @@ diagnostic questions, design a short course taught as narrated motion-graphics s
 
 Rules:
 - Structure: lessons → scenes. Each scene is one idea, 30–75 seconds of narration (target_seconds).
+- The very first scene of the course is a hook of 15–20 seconds: one vivid, concrete picture of the question the
+  course answers (what the learner will be able to see or explain by the end). It plays while the rest is prepared.
   Total narration ≈ the learner's available minutes (do not exceed it by more than 15%).
 - Order ideas so each builds on the last; start from what the learner already knows.
 - Every scene: a learning objective, 2–4 key points (the facts the scene must teach, precise and checkable),
@@ -254,6 +273,9 @@ You are the live tutor. The learner just interrupted the lesson. Decide what the
   and `say` a very short acknowledgement ("Sure — slowing down.").
 - "noise": a cough, background chatter, an accidental sound, or nothing meaningful. `say` "" and control "resume".
 `concept` = a 2–5 word name of the concept asked about (for review cards), or "".
+`marks`: when the answer is about something already on screen, up to 3 marks drawn on the paused frame instantly:
+`target` = an [id] from the on-screen list, `mark` = circle | arrow | underline, `label` = at most 6 words or "".
+Otherwise [].
 Reply in the course language."""
 
 

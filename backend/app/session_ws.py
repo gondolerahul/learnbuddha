@@ -65,7 +65,7 @@ class Conn:
         self.status_sig = ""
         # interruption state
         self.barge: dict | None = None
-        self.agent = make_agent(Callbacks(self.on_user_text, self.on_tutor_text, self.on_tutor_audio, self.on_control, self.on_visual, self.on_turn_done))
+        self.agent = make_agent(Callbacks(self.on_user_text, self.on_tutor_text, self.on_tutor_audio, self.on_control, self.on_visual, self.on_turn_done, self.on_annotate))
 
     # ───────────── send helpers ─────────────
 
@@ -240,7 +240,15 @@ class Conn:
         if sc is None:
             self.idx += 1
             return True
-        if sc["status"] != "ready":
+        live = sc["status"] == "working" and bool((sc.get("media") or {}).get("live"))
+        if sc["status"] == "failed" and self.frag is not None:
+            # it failed while we were streaming it: end what was played and move on
+            self.placed[-1]["tl_end"] = round(self.tl_end, 4)
+            self.idx += 1
+            self.frag = None
+            await self.send({"type": "scene_failed", "scene_id": sc["id"], "kind": sc["kind"], "title": sc["title"], "error": (sc.get("error") or "")[:300]})
+            return True
+        if sc["status"] != "ready" and not live:
             if sc["status"] == "failed":
                 await self.send({"type": "scene_failed", "scene_id": sc["id"], "kind": sc["kind"], "title": sc["title"], "error": (sc.get("error") or "")[:300]})
                 self.playlist.pop(self.idx)
@@ -266,13 +274,15 @@ class Conn:
             })
             await self.send_bin({"k": "init", "eid": e["eid"]}, self.read(m["path"], 0, m["init_size"]))
             self.frag = i0
+        if self.frag >= len(frags) and live:
+            return False  # streaming a scene that is still rendering: everything finished so far has been sent
         if self.frag < len(frags) and frags[self.frag][0] < src_to - 1e-3:
             start, end, off, size = frags[self.frag]
             await self.send_bin({"k": "frag", "eid": e["eid"], "i": self.frag, "start": start}, self.read(m["path"], off, size))
             p = self.placed[-1]
             self.tl_end = p["tl_start"] + (min(end, src_to) - p["src_from"])
             self.frag += 1
-        if self.frag >= len(frags) or frags[self.frag][0] >= src_to - 1e-3:
+        if (self.frag >= len(frags) and not live) or (self.frag < len(frags) and frags[self.frag][0] >= src_to - 1e-3):
             self.placed[-1]["tl_end"] = round(self.tl_end, 4)
             self.idx += 1
             self.frag = None
@@ -347,7 +357,7 @@ class Conn:
                 recent.append({"q": q.question, "a": q.spoken_answer})
             return TutorContext(
                 course_title=c.title or c.topic, level=c.level, language=c.language, scene_title=sc.get("title", ""),
-                script_so_far=script[: si + 1], current_sentence=script[si] if script else "", on_screen=kit.visible_text(sc.get("spec", {}), t), recent_qa=recent,
+                script_so_far=script[: si + 1], current_sentence=script[si] if script else "", on_screen=[f"[{e['id']}] {e['text'] or e['type']}" for e in kit.visible_elements(sc.get("spec", {}), t)], recent_qa=recent,
             )
 
     async def set_barge(self, tl: float) -> None:
@@ -358,6 +368,19 @@ class Conn:
         sc = await self.scene(p["scene_id"])
         media_t = p["src_from"] + (tl - p["tl_start"])
         self.barge = {"tl": tl, "eid": p["eid"], "scene": sc, "media_t": media_t, "qa_id": None}
+
+    async def on_annotate(self, target: str, mark: str, label: str) -> None:
+        """The tutor points at something on the paused frame: the browser draws it at once (no clip needed)."""
+        b = self.barge or {}
+        sc = b.get("scene") or {}
+        t = float(b.get("media_t", 0.0))
+        ids = {e["id"] for e in kit.visible_elements(sc.get("spec", {}), t)}
+        target = target.strip().strip("[]")
+        if target.split(".")[0] not in ids:
+            log.info("tutor pointed at %r, which is not on screen; ignored", target)
+            return
+        await self.send({"type": "annotate", "scene_id": sc.get("id"), "eid": b.get("eid"), "t": round(t, 3), "target": target,
+                         "mark": mark if mark in ("circle", "arrow", "underline") else "circle", "label": label})
 
     async def on_user_text(self, text: str, final: bool) -> None:
         await self.send({"type": "user_text", "text": text, "final": final})

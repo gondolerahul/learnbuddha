@@ -76,8 +76,11 @@ def test_full_flow():
             ws.send_text(json.dumps({"type": "ask", "text": "why does the plant need light for this?", "tl": 3.0}))
             tut, _ = recv_until(ws, lambda m: m["type"] == "tutor_text" and m["final"])
             assert tut["speak"] is True
-            trunc, _ = recv_until(ws, lambda m: m["type"] == "truncate")
+            trunc, seen_t = recv_until(ws, lambda m: m["type"] == "truncate")
             assert abs(trunc["tl"] - 3.0) < 1e-6
+            # the tutor points at something on the paused frame at once, before any clip exists
+            marks = [m for m in seen_t if m["type"] == "annotate"]
+            assert marks and marks[0]["mark"] == "circle" and marks[0]["target"] and abs(marks[0]["t"] - 3.0) < 0.5
             tags = [e["tag"] for e in trunc["playlist"][trunc["cursor"] : trunc["cursor"] + 3]]
             assert tags == ["answer", "recap", "resume"]
             pending, _ = recv_until(ws, lambda m: m["type"] == "answer_pending")

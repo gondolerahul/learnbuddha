@@ -31,6 +31,7 @@ class Callbacks:
     control: Callable[[str], Awaitable[None]]
     visual: Callable[[str, str], Awaitable[None]]  # question, concept
     turn_done: Callable[[dict], Awaitable[None]]  # {question, answer, kind, concept}
+    annotate: Callable[[str, str, str], Awaitable[None]] | None = None  # target id, mark, label: drawn on the paused frame
 
 
 class VoiceAgent(Protocol):
@@ -59,6 +60,9 @@ How to respond:
 - A real question: answer in 1–3 short spoken sentences (under ~15 seconds), warm and concrete, tied to what's on
   screen. If a picture would genuinely help (a why/how, a comparison, a process), ALSO call show_visual_answer with
   the question restated clearly, and say you'll sketch it. Don't call it for quick factual or yes/no doubts.
+- When your answer is about something already on screen, call point_at FIRST, before you start speaking: the learner sees a circle,
+  arrow or underline appear on that element straight away, with your short label. Use the [id] from the on-screen
+  list, at most 3 marks per answer. Prefer pointing at what is there over drawing a new clip.
 - A playback command (slower, faster, repeat, skip, continue, pause): call lesson_control and say only a few words.
 - A cough, background noise, or nothing meaningful: call lesson_control with action "resume" and say nothing.
 Never lecture; the lesson will continue right after you. Never reply to a [Paused lesson] note on its own."""
@@ -69,7 +73,7 @@ def context_note(ctx: TutorContext) -> str:
 Scene: {ctx.scene_title}.
 Narration so far: {' '.join(ctx.script_so_far[-6:])}
 They interrupted during: "{ctx.current_sentence}"
-On screen right now: {' | '.join(ctx.on_screen[:20])}
+On screen right now ([id] what): {' | '.join(ctx.on_screen[:20])}
 Recent questions: {json.dumps(ctx.recent_qa[-3:], ensure_ascii=False)}"""
 
 
@@ -87,6 +91,20 @@ def live_tools(non_blocking: bool) -> list[dict]:
                             "concept": {"type": "STRING", "description": "2–5 word name of the concept"},
                         },
                         "required": ["question"],
+                    },
+                    **({"behavior": "NON_BLOCKING"} if non_blocking else {}),
+                },
+                {
+                    "name": "point_at",
+                    "description": "Mark something on the paused frame while you talk about it (appears instantly).",
+                    "parameters": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "target": {"type": "STRING", "description": "The [id] of an element from the on-screen list"},
+                            "mark": {"type": "STRING", "enum": ["circle", "arrow", "underline"]},
+                            "label": {"type": "STRING", "description": "At most 6 words, or empty"},
+                        },
+                        "required": ["target", "mark"],
                     },
                     **({"behavior": "NON_BLOCKING"} if non_blocking else {}),
                 },
@@ -234,6 +252,7 @@ class GeminiLiveAgent:
         self._user, self._tutor, self._visual, self._concept, self._kind = "", "", False, "", "question"
         self._spoke = False  # any audio/transcript this turn
         self._deferred = False  # already waited one extra model turn after a tool call
+        self._pointed = False  # point_at was called this turn
 
     async def begin(self, ctx: TutorContext) -> None:
         self.touch()
@@ -352,7 +371,8 @@ class GeminiLiveAgent:
                         if sc.turn_complete:
                             # With blocking tools (Vertex) the model often calls show_visual_answer first,
                             # ends that turn silently, and speaks in the next turn after our reply.
-                            if self._visual and not self._deferred and not self._muted:
+                            # The same happens after point_at when it is called first, as instructed: the answer comes next turn.
+                            if (self._visual or (self._pointed and not self._spoke)) and not self._deferred and not self._muted:
                                 self._deferred = True
                                 continue
                             await self._finish_turn()
@@ -371,6 +391,12 @@ class GeminiLiveAgent:
                                 resp = {"result": "Drawing it now. Continue your spoken answer from where you stopped; don't repeat yourself."} | (
                                     {"scheduling": "SILENT"} if self._non_blocking else {}
                                 )
+                                responses.append(types.FunctionResponse(id=fc.id, name=fc.name, response=resp))
+                            elif fc.name == "point_at":
+                                self._pointed = True
+                                if not self._muted and self.cb.annotate:
+                                    await self.cb.annotate(str(args.get("target", "")), str(args.get("mark", "circle")), str(args.get("label", ""))[:60])
+                                resp = {"result": "Shown. Keep talking."} | ({"scheduling": "SILENT"} if self._non_blocking else {})
                                 responses.append(types.FunctionResponse(id=fc.id, name=fc.name, response=resp))
                             elif fc.name == "lesson_control":
                                 self._kind = "control"
@@ -454,6 +480,9 @@ class TextAgent:
             await self.cb.tutor_text(r["say"], True, True)
         if r["kind"] in ("control", "noise") and r.get("control") not in (None, "none"):
             await self.cb.control(r["control"])
+        if r["kind"] == "question" and self.cb.annotate:
+            for m in (r.get("marks") or [])[:3]:
+                await self.cb.annotate(str(m.get("target", "")), str(m.get("mark", "circle")), str(m.get("label", ""))[:60])
         if r["kind"] == "question" and r.get("visual"):
             await self.cb.visual(text, r.get("concept", ""))
         if r["kind"] != "noise":

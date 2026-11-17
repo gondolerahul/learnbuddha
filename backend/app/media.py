@@ -280,6 +280,16 @@ def _grade(spec: dict) -> str:
     return body or "null"
 
 
+def keyframe_frames(keyframes: list[float], dur: float, fps: int) -> list[int]:
+    """Frames that start a fragment: every sentence start and every whole second (so live streaming can follow
+    the render a second at a time)."""
+    return sorted({0, *[round(k * fps) for k in keyframes if 0 <= k < dur], *[i * fps for i in range(1, int(dur) + 1) if i < dur]})
+
+
+def keyframe_times(keyframes: list[float], dur: float, fps: int) -> list[float]:
+    return [round(f / fps, 4) for f in keyframe_frames(keyframes, dur, fps)]
+
+
 def encode_scene(
     spec: dict,
     narration_wav: Path,
@@ -298,7 +308,7 @@ def encode_scene(
     w, h, fps = s.render_width, s.render_height, s.render_fps
     dur = float(spec["duration"])
     port = _free_port()
-    frames = sorted({0, *[round(k * fps) for k in keyframes if 0 <= k < dur], *[i * fps for i in range(1, int(dur) + 1) if i < dur]})
+    frames = keyframe_frames(keyframes, dur, fps)
     # ffmpeg keys the first frame with pts >= the given time; aim half a frame early so rounding
     # can never push a keyframe onto the next frame.
     kf_arg = ",".join("0" if f == 0 else f"{(f - 0.5) / fps:.5f}" for f in frames)
@@ -384,8 +394,8 @@ def _boxes(buf: bytes, start: int = 0, end: int | None = None):
             hdr = 16
         elif size == 0:
             size = end - i
-        if size < hdr:
-            break
+        if size < hdr or i + size > end:
+            break  # a box still being written (live indexing of a growing file) or a corrupt one
         yield typ.decode("latin-1"), i, i + hdr, i + size
         i += size
 

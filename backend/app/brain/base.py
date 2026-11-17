@@ -39,6 +39,7 @@ class SceneContext:
     misconception: str = ""
     original_script: list[str] = field(default_factory=list)
     kit: str = ""
+    urgent: bool = False  # a learner is waiting for this one (the course's first scene, a remediation, an explain-again)
 
 
 @dataclass
@@ -71,7 +72,7 @@ class TutorContext:
 class Brain(Protocol):
     name: str
 
-    def plan(self, req: CourseRequest) -> dict:
+    def plan(self, req: CourseRequest, on_partial=None) -> dict:
         """{title, summary, level, lessons:[{title, objective, scenes:[...], checkpoint:{questions:[...]}}]}"""
 
     def draft_scene(self, ctx: SceneContext) -> dict:

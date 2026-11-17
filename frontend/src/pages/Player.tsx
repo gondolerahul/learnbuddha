@@ -4,12 +4,14 @@ import { api, CourseOut, fmtINR, fmtTime, Health, SessionSummary } from "../lib/
 import { Entry, LessonStream, Mic, PcmPlayer, ServerMsg, speechRecognition } from "../lib/stream";
 import { StatusDot } from "./Course";
 import { CostBreakdown, useCosts } from "./Costs";
+import { Mark, markFor, MarksOverlay } from "../lib/marks";
 
 type Mode = "idle" | "playing" | "paused" | "listening" | "answering" | "awaiting" | "checkpoint" | "ended";
 interface Checkpoint { eid: string; tl_at: number; lesson_title: string; objective: string; questions: { question: string; options: string[] }[] }
 interface CpResult { q: number; choice: number; correct: boolean; correct_index: number; explanation: string }
 
 const RATES = [0.75, 1, 1.25, 1.5];
+const MARK_HOLD_MS = 2500;
 
 export default function Player({ health }: { health: Health | null }) {
   const { sessionId = "" } = useParams();
@@ -22,7 +24,13 @@ export default function Player({ health }: { health: Health | null }) {
 
   const [mode, _setMode] = useState<Mode>("idle");
   const modeRef = useRef<Mode>("idle");
-  const setMode = (m: Mode) => { modeRef.current = m; _setMode(m); };
+  const [marks, setMarks] = useState<Mark[]>([]);
+  const markShownAt = useRef(0); // the tutor's marks stay up at least MARK_HOLD_MS before the lesson resumes
+  const setMode = (m: Mode) => {
+    modeRef.current = m;
+    _setMode(m);
+    if (m === "playing") setMarks([]); // the tutor's marks belong to the paused frame
+  };
   const [voiceMode, setVoiceMode] = useState<"gemini" | "text">("text");
   const [course, setCourse] = useState<CourseOut | null>(null);
   const [statuses, setStatuses] = useState<Record<string, { status: string; stage: string; progress: number; kind: string; title: string }>>({});
@@ -103,6 +111,14 @@ export default function Player({ health }: { health: Health | null }) {
         pendingControl.current = m.action;
         if (spoken.current || modeRef.current === "listening") afterSpoken();
         break;
+      case "annotate":
+        markFor(m).then((mk) => {
+          if (mk && modeRef.current !== "playing") {
+            markShownAt.current = performance.now();
+            setMarks((ms) => [...ms.slice(-2), mk]);
+          }
+        });
+        break;
       case "answer_pending":
         setPending({ id: m.scene_id, kind: "answer", question: m.question });
         break;
@@ -161,6 +177,12 @@ export default function Player({ health }: { health: Health | null }) {
 
   function resumeAt(tl: number) {
     const v = videoRef.current!;
+    const held = performance.now() - markShownAt.current;
+    if (held < MARK_HOLD_MS) {
+      // a mark that arrived with the end of the answer still gets looked at before the picture moves on
+      window.setTimeout(() => { if (modeRef.current !== "playing" && modeRef.current !== "listening") resumeAt(tl); }, MARK_HOLD_MS - held);
+      return;
+    }
     v.currentTime = tl;
     v.play().catch(() => {});
     setMode("playing");
@@ -201,6 +223,7 @@ export default function Player({ health }: { health: Health | null }) {
     speechSynthesis.cancel();
     setUserText("");
     setTutorText("");
+    setMarks([]);
     tutorFinal.current = false;
     setMode("listening");
     eng.current!.send({ type: "barge_in", tl: bargeTl.current });
@@ -403,6 +426,7 @@ export default function Player({ health }: { health: Health | null }) {
         <div>
           <div className={`stage ${audioOnly ? "audio-only" : ""}`}>
             <video ref={videoRef} playsInline aria-label="Lesson video" />
+            {mode !== "playing" && <MarksOverlay marks={marks} />}
             {captions && sentence && (mode === "playing" || mode === "paused") && (
               <div className="captions" aria-live="off">
                 {sentence.words.map((w, i) => (

@@ -2,6 +2,7 @@
 It is a stand-in for development and tests, not a teacher."""
 from __future__ import annotations
 
+import json
 import re
 
 from .base import AnswerContext, CourseRequest, SceneContext, TutorContext
@@ -10,7 +11,13 @@ from .base import AnswerContext, CourseRequest, SceneContext, TutorContext
 class MockBrain:
     name = "mock"
 
-    def plan(self, req: CourseRequest) -> dict:
+    def plan(self, req: CourseRequest, on_partial=None) -> dict:
+        p = self._plan(req)
+        if on_partial:
+            on_partial(json.dumps(p))
+        return p
+
+    def _plan(self, req: CourseRequest) -> dict:
         topic = req.topic.strip().rstrip("?.") or "this topic"
         level = next((a.get("answer") for a in req.answers if a.get("question", "").lower().startswith("how familiar")), "curious beginner")
         t = max(30, min(60, int(req.minutes * 60 / 4)))
@@ -119,4 +126,6 @@ class MockBrain:
             "control": "none",
             "visual": len(u.split()) > 3,
             "concept": ctx.scene_title[:40],
+            # point at the first thing on screen, as a real tutor would ("[id] text")
+            "marks": [{"target": m.group(1), "mark": "circle", "label": ""} for m in [re.match(r"\[([^\]]+)\]", ctx.on_screen[0] if ctx.on_screen else "")] if m],
         }

@@ -127,39 +127,66 @@ export function lightDir(env: Env): [number, number] {
   return v[from] ?? v["upper-left"];
 }
 
-// One scratch layer for lighting props, reused for every prop of every frame: props are drawn one at a time
-// (draw → light → place), so a single canvas suffices and nothing is allocated per frame. Props bigger than it
-// are drawn unlit.
-const SCRATCH = 1536;
-let scratch: any = null;
-function propCanvas(env: Env, w: number, h: number) {
-  if (w > SCRATCH || h > SCRATCH) return null;
-  if (!scratch) scratch = env.makeCanvas(SCRATCH, SCRATCH);
-  const g = scratch.getContext("2d");
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.globalCompositeOperation = "source-over";
-  g.globalAlpha = 1;
-  g.filter = "none";
-  g.shadowBlur = 0;
-  g.shadowColor = "rgba(0,0,0,0)";
-  g.clearRect(0, 0, w + 2, h + 2);
-  return { c: scratch, g };
+// Lit props are kept as sprites and reused while nothing about them changes. Building one (draw → light → texture
+// on its own layer) is most of a frame's cost, and most props look the same for many frames in a row. Their idle
+// loops step PROP_ANIM_FPS times a second ("on twos" at 24 fps, as in hand animation); entrances, motion and the
+// camera stay smooth because they act where the sprite is placed, not inside it. A sprite is a pure function of its
+// key, so frames stay identical across render threads. Props bigger than SPRITE_MAX px are drawn unlit.
+export const PROP_ANIM_FPS = 12;
+const SPRITE_MAX = 1536;
+const SPRITE_BUDGET = 24_000_000; // pixels kept per render thread (about 96 MB)
+const spriteCaches = new WeakMap<object, { map: Map<string, any>; px: number }>();
+
+function spriteCache(env: Env) {
+  let cache = spriteCaches.get(env.tokens as object);
+  if (!cache) spriteCaches.set(env.tokens as object, (cache = { map: new Map(), px: 0 }));
+  return cache;
 }
+
+function cachedSprite(env: Env, key: string, w: number, h: number, build: (g: any) => void): any | null {
+  if (w > SPRITE_MAX || h > SPRITE_MAX) return null;
+  const cache = spriteCache(env);
+  const hit = cache.map.get(key);
+  if (hit) {
+    cache.map.delete(key); // most recently used goes last
+    cache.map.set(key, hit);
+    return hit;
+  }
+  const c = env.makeCanvas(w, h);
+  build(c.getContext("2d"));
+  cache.map.set(key, c);
+  cache.px += w * h;
+  for (const [k, old] of cache.map) {
+    if (cache.px <= SPRITE_BUDGET) break;
+    cache.map.delete(k);
+    cache.px -= old.width * old.height;
+  }
+  return c;
+}
+
 
 export function drawProp(env: Env, kind: string, x: number, y: number, size: number, o: { t: number; state?: number; color?: string; flip?: boolean; rotate?: number; alpha?: number; seed?: number; face?: boolean; talk?: number; mood?: string; scaleX?: number; scaleY?: number; flat?: boolean; grounded?: boolean }) {
   const def = PROPS[kind];
   if (!def) return false;
-  const s = size / 100;
   const { ctx } = env;
   const art: any = (env.tokens as any).art ?? {};
   const lit = !o.flat && size >= 40 && art.light !== false;
+  if (lit) {
+    // A sprite must look exactly as its key says, whichever frame (or render thread) builds it first, so it is drawn
+    // with the same rounded values the key uses.
+    size = Math.round(size); // whole-pixel sizes, so a sprite is reused while a prop holds still
+    const snap = (v: number | undefined, step: number) => (v === undefined ? undefined : Math.round(v / step) * step);
+    o = { ...o, state: snap(o.state, 0.01), talk: snap(o.talk, 0.05), rotate: snap(o.rotate, 0.002), scaleX: snap(o.scaleX, 0.005), scaleY: snap(o.scaleY, 0.005) };
+  }
+  const s = size / 100;
+  const tq = Math.floor(o.t * PROP_ANIM_FPS + 1e-6) / PROP_ANIM_FPS;
   const drawInto = (g: any) => {
     const A = artFor({ ...env, ctx: g } as Env, s);
     if (o.face === false) A.cartoon = false;
     g.save();
     if (o.rotate) g.rotate(o.rotate);
     g.scale(s * (o.flip ? -1 : 1) * (o.scaleX ?? 1), s * (o.scaleY ?? 1));
-    def.draw(A, { t: o.t, state: o.state ?? 0, color: o.color, seed: o.seed ?? 0, talk: o.talk, mood: o.mood });
+    def.draw(A, { t: lit ? tq : o.t, state: o.state ?? 0, color: o.color, seed: o.seed ?? 0, talk: o.talk, mood: o.mood });
     g.restore();
   };
   if (!lit) {
@@ -172,23 +199,17 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
   }
   // Draw the prop alone into a layer at device resolution, light it, then place it with its shadows.
   const m = ctx.getTransform();
-  const dev = Math.max(0.25, Math.hypot(m.a, m.b));
+  const dev = Math.max(0.25, Math.round(Math.hypot(m.a, m.b) * 100) / 100); // rounded like the sprite key
   const bw = size * def.aspect * 1.6 * Math.max(1, Math.abs(o.scaleX ?? 1)), bh = size * 1.7;
   const pw = Math.min(2048, Math.ceil(bw * dev)), ph = Math.min(2048, Math.ceil(bh * dev));
-  const layer = propCanvas(env, pw, ph);
-  if (!layer) {
-    ctx.save();
-    ctx.globalAlpha *= o.alpha ?? 1;
-    ctx.translate(x, y);
-    drawInto(ctx);
-    ctx.restore();
-    return true;
-  }
-  const { c, g } = layer;
+  const emissive = EMISSIVE.has(kind) && !(kind === "bulb" && !(o.state ?? 0));
+  const [lx0, ly0] = lightDir(env);
+  const lx = Math.round(lx0 * 100) / 100, ly = Math.round(ly0 * 100) / 100;
+  const key = [kind, size, pw, ph, dev, tq, o.state ?? 0, o.color ?? "", o.flip ? 1 : 0, o.rotate ?? 0, o.seed ?? 0,
+    o.face === false ? 0 : 1, o.talk ?? 0, o.mood ?? "", o.scaleX ?? 1, o.scaleY ?? 1, lx, ly].join("|");
+  const c = cachedSprite(env, key, pw, ph, (g) => {
   g.setTransform(dev, 0, 0, dev, (pw / dev / 2) * dev, (ph / dev / 2) * dev);
   drawInto(g);
-  const emissive = EMISSIVE.has(kind) && !(kind === "bulb" && !(o.state ?? 0));
-  const [lx, ly] = lightDir(env);
   if (!emissive) {
     // key light: warm on the lit side, cool shade on the far side, only on the prop's own pixels
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -214,6 +235,15 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
     g.globalCompositeOperation = "source-over";
   }
   applyTexture(env, g, pw, ph, art.texture, num(art.textureStrength, 1));
+  });
+  if (!c) {
+    ctx.save();
+    ctx.globalAlpha *= o.alpha ?? 1;
+    ctx.translate(x, y);
+    drawInto(ctx);
+    ctx.restore();
+    return true;
+  }
   ctx.save();
   ctx.globalAlpha *= o.alpha ?? 1;
   ctx.translate(x, y);
@@ -247,10 +277,7 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
   }
   ctx.drawImage(c, 0, 0, pw, ph, -pw / dev / 2, -ph / dev / 2, pw / dev, ph / dev);
   ctx.restore();
-  // The canvas library defers drawing one canvas into another until pixels are read; reusing the scratch layer
-  // before that would change what this prop looked like. Reading one pixel makes the draw happen now, so every
-  // frame is a pure function of time (and identical across render threads).
-  ctx.getImageData(0, 0, 1, 1);
+  // No forced flush is needed: a sprite is never drawn into again after it is built.
   return true;
 }
 

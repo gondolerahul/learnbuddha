@@ -1,5 +1,5 @@
 export * from "./types";
-export { renderScene, drawScene, lintScene, visibleText, cameraAt, COMPONENTS } from "./scene";
+export { renderScene, drawScene, lintScene, visibleText, cameraAt, elementScreenBox, COMPONENTS } from "./scene";
 export { compileExpr } from "./expr";
 import zen from "../stylekit/zen-board-v1/tokens.json";
 import zenHc from "../stylekit/zen-board-hc-v1/tokens.json";

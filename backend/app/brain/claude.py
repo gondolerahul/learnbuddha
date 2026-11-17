@@ -99,7 +99,7 @@ class ClaudeBrain:
 
     # ───────────── tasks ─────────────
 
-    def plan(self, req: CourseRequest) -> dict:
+    def plan(self, req: CourseRequest, on_partial=None) -> dict:  # no streaming here: the plan arrives whole
         answers = "\n".join(f"- {a.get('question')}: {a.get('answer')}" for a in req.answers) or "(none)"
         user = (
             f"Topic: {req.topic}\nLearner's goal: {req.goal or '(not given)'}\nAvailable time: {req.minutes} minutes\n"
@@ -108,17 +108,17 @@ class ClaudeBrain:
         return self._json(prompts.planner_system(), user, prompts.PLAN_SCHEMA, effort="high", op="plan")
 
     def draft_scene(self, ctx: SceneContext) -> dict:
-        return self._scene_call(prompts.scene_system(kit_id=ctx.kit), _scene_user(ctx), op="scene_script")
+        return self._scene_call(prompts.scene_system(kit_id=ctx.kit), _scene_user(ctx), effort=get_settings().urgent_thinking if ctx.urgent else get_settings().scene_thinking, op="scene_script")
 
     def draft_answer(self, ctx: AnswerContext) -> dict:
-        return self._scene_call(prompts.scene_system(answer_mode=True, kit_id=ctx.kit), _answer_user(ctx), answer_mode=True, op="answer_script")
+        return self._scene_call(prompts.scene_system(answer_mode=True, kit_id=ctx.kit), _answer_user(ctx), effort=get_settings().urgent_thinking, answer_mode=True, op="answer_script")
 
     def tutor_reply(self, ctx: TutorContext, utterance: str) -> dict:
         user = (
             f"Course: {ctx.course_title} · learner: {ctx.level} · language: {ctx.language}\n"
             f"Scene: {ctx.scene_title}\nNarration so far (last part):\n{' '.join(ctx.script_so_far[-6:])}\n"
             f"Sentence being spoken when they interrupted: {ctx.current_sentence}\n"
-            f"On screen: {' | '.join(ctx.on_screen[:20])}\n"
+            f"On screen ([id] what): {' | '.join(ctx.on_screen[:20])}\n"
             f"Recent Q&A: {json.dumps(ctx.recent_qa[-3:], ensure_ascii=False)}\n\n"
             f'The learner said: "{utterance}"'
         )

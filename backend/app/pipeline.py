@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import logging
 import shutil
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -77,14 +79,75 @@ def fail_scene(scene_id: str, err: str) -> None:
 # ───────────────────────────── planning ─────────────────────────────
 
 
+_STR = r'"((?:[^"\\]|\\.)*)"'
+
+
+def partial_first_scene(text: str) -> dict | None:
+    """From a plan still being written: audience, style, the first lesson's title and objective and its first scene,
+    once all of them are complete. None until then."""
+    aud = re.search(r'"audience"\s*:\s*"([a-z_]+)"', text)
+    sty = re.search(r'"style"\s*:\s*"([a-z0-9-]+)"', text)
+    i = text.find('"lessons"')
+    if not (aud and sty) or i < 0:
+        return None
+    j = text.find('"scenes"', i)
+    k = text.find("{", j) if j >= 0 else -1
+    if k < 0:
+        return None
+    try:
+        scene, _ = json.JSONDecoder().raw_decode(text, k)
+    except ValueError:
+        return None
+    if not isinstance(scene, dict) or not {"title", "objective", "key_points", "visual_idea", "target_seconds"} <= scene.keys():
+        return None
+    lt = re.search(r'"title"\s*:\s*' + _STR, text[i:j])
+    lo = re.search(r'"objective"\s*:\s*' + _STR, text[i:j])
+    ct = re.search(r'"title"\s*:\s*' + _STR, text[:i])
+    if not lt:
+        return None
+    dec = lambda m: json.loads(f'"{m.group(1)}"') if m else ""  # noqa: E731
+    return {"audience": aud.group(1), "style": sty.group(1), "course_title": dec(ct), "lesson_title": dec(lt), "lesson_objective": dec(lo), "scene": scene}
+
+
+def _start_first_scene(course_id: str, early: dict) -> tuple[str, str]:
+    """Create lesson 1 and its first scene from the partial plan and queue it, so it is scripted while the rest of the
+    plan is still being written."""
+    S = early["scene"]
+    with session() as db:
+        c = db.get(Course, course_id)
+        c.kit = kit.choose_kit(c.kit, early["audience"], early["style"])
+        c.title = early["course_title"] or c.topic
+        lesson = Lesson(course_id=c.id, idx=0.0, title=early["lesson_title"], objective=early["lesson_objective"], checkpoint={"questions": []})
+        db.add(lesson)
+        db.flush()
+        sc = Scene(course_id=c.id, lesson_id=lesson.id, idx=0.0, kind="lesson", title=S["title"], objective=S.get("objective", ""),
+                   key_points=S.get("key_points", []), visual_idea=S.get("visual_idea", ""), target_seconds=int(S.get("target_seconds", 20)))
+        sc.cache_key = scene_cache_key(c, lesson, sc)
+        db.add(sc)
+        db.flush()
+        jobs.enqueue(db, "produce_scene", {"scene_id": sc.id}, priority=jobs.PRIORITY_SCENE_BASE + 10)
+        log.info("course %s: first scene %r queued before the plan finished", course_id, S["title"])
+        return lesson.id, sc.id
+
+
 def plan_course(course_id: str) -> None:
     with session() as db:
         c = db.get(Course, course_id)
         if c is None:
             return
         req = CourseRequest(topic=c.topic, goal=c.goal, minutes=c.minutes, language=c.language, answers=c.diagnostics or [])
+    early: dict = {}
+
+    def on_partial(text: str) -> None:
+        if early:
+            return
+        got = partial_first_scene(text)
+        if got:
+            early.update(got)
+            early["lesson_id"], early["scene_id"] = _start_first_scene(course_id, got)
+
     try:
-        plan = course_brain(course_id).plan(req)
+        plan = course_brain(course_id).plan(req, on_partial=on_partial)
     except Exception as e:  # any failure (model error, expired Google sign-in, network) must not leave it "planning"
         with session() as db:
             c = db.get(Course, course_id)
@@ -100,10 +163,22 @@ def plan_course(course_id: str) -> None:
         c.sources = plan.get("sources", [])
         order = 0
         for li, L in enumerate(plan.get("lessons", [])):
-            lesson = Lesson(course_id=c.id, idx=float(li), title=L["title"], objective=L.get("objective", ""), checkpoint=L.get("checkpoint", {"questions": []}))
-            db.add(lesson)
-            db.flush()
+            if li == 0 and early:
+                # created from the partial plan; fill in what came later (the checkpoint)
+                lesson = db.get(Lesson, early["lesson_id"])
+                lesson.title, lesson.objective = L["title"], L.get("objective", "")
+                lesson.checkpoint = L.get("checkpoint", {"questions": []})
+            else:
+                lesson = Lesson(course_id=c.id, idx=float(li), title=L["title"], objective=L.get("objective", ""), checkpoint=L.get("checkpoint", {"questions": []}))
+                db.add(lesson)
+                db.flush()
             for si, S in enumerate(L.get("scenes", [])):
+                if li == 0 and si == 0 and early:
+                    if S.get("title") != early["scene"]["title"]:
+                        log.warning("course %s: plan's first scene changed after it was started (%r → %r); keeping the started one",
+                                    course_id, early["scene"]["title"], S.get("title"))
+                    order += 1
+                    continue
                 sc = Scene(
                     course_id=c.id, lesson_id=lesson.id, idx=float(si), kind="lesson", title=S["title"], objective=S.get("objective", ""),
                     key_points=S.get("key_points", []), visual_idea=S.get("visual_idea", ""), target_seconds=int(S.get("target_seconds", 45)),
@@ -172,6 +247,7 @@ def scene_context(scene_id: str) -> tuple[SceneContext, str]:
             target_seconds=sc.target_seconds, index_in_lesson=idx if sc.kind == "lesson" else 1, scenes_in_lesson=max(1, len(siblings)),
             previous_summary=prev_summary, next_title=nxt.title if nxt else "", sources=c.sources or [], mode=mode,
             misconception=sc.question or "", original_script=original, kit=c.kit,
+            urgent=mode != "lesson" or (idx == 0 and (lesson is None or lesson.idx == 0)),
         )
         return ctx, c.kit
 
@@ -246,7 +322,12 @@ def publish(scene_id: str, spec: dict, out_dir: Path, nar: media.Narration, musi
         urgent = sc.kind != "lesson"  # a learner is waiting on answers, recaps and re-explanations
         rank = (lesson.idx if lesson else 0.0, sc.idx, time.monotonic(), scene_id)
     with media.RENDER_GATE.slot(rank, urgent=urgent, on_wait=lambda: set_stage(scene_id, "waiting to render", 0.4)):
-        kf = media.encode_scene(spec, out_dir / "narration.wav", mp4, keyframes=starts, music_level=music_level, on_progress=on_progress, sfx_wav=sfx_path)
+        watcher = LiveWatcher(scene_id, mp4, spec["duration"], media.keyframe_times(starts, spec["duration"], get_settings().render_fps), starts)
+        watcher.start()
+        try:
+            kf = media.encode_scene(spec, out_dir / "narration.wav", mp4, keyframes=starts, music_level=music_level, on_progress=on_progress, sfx_wav=sfx_path)
+        finally:
+            watcher.stop()
     idx = media.index_fmp4(mp4)
     frag_list = normalize_fragments(idx["fragments"], kf, spec["duration"])
     pts_offset = idx["fragments"][1][0] - frag_list[1][0] if len(frag_list) > 1 else 0.0
@@ -268,6 +349,63 @@ def publish(scene_id: str, spec: dict, out_dir: Path, nar: media.Narration, musi
             "sentence_starts": [round(x, 4) for x in starts],
         }
         sc.status, sc.stage, sc.progress, sc.error = "ready", "ready", 1.0, None
+
+
+LIVE_MARGIN = 2.0  # seconds of slack kept between playback and the render when streaming a scene as it renders
+
+
+class LiveWatcher(threading.Thread):
+    """Streams a scene while it renders. Every half second it reads the fragments ffmpeg has finished so far and,
+    once the render is far enough ahead that playback (1 s per s) cannot catch it, publishes them as `media.live`.
+    The session pump plays those and waits for more; the finished index replaces them with identical entries."""
+
+    def __init__(self, scene_id: str, mp4: Path, duration: float, keyframes: list[float], starts: list[float]) -> None:
+        super().__init__(daemon=True, name=f"live-{scene_id}")
+        self.scene_id, self.mp4, self.duration, self.keyframes, self.starts = scene_id, mp4, duration, keyframes, starts
+        self._stop = threading.Event()
+        self.went_live_at: float | None = None
+
+    def stop(self) -> None:
+        self._stop.set()
+        self.join(timeout=2)
+
+    def run(self) -> None:
+        t0 = time.monotonic()
+        live = False
+        published = 0
+        while not self._stop.wait(0.5):
+            try:
+                if not self.mp4.exists():
+                    continue
+                idx = media.index_fmp4(self.mp4)
+            except Exception:  # noqa: BLE001 - a half-written file; try again next tick
+                continue
+            raw = idx["fragments"]
+            if len(raw) < 3:
+                continue
+            frags = normalize_fragments(raw, self.keyframes, self.duration)[:-1]  # the last one's end is not known yet
+            done = frags[-1][1]  # seconds of video ready
+            rate = done / max(0.5, time.monotonic() - t0)  # video seconds rendered per wall second
+            if not live:
+                # safe when what is left renders before playback of what is ready runs out
+                live = done >= (self.duration - done) / max(rate, 1e-3) + LIVE_MARGIN or rate >= 1.15
+                if not live:
+                    continue
+                self.went_live_at = time.monotonic() - t0
+                log.info("scene %s streaming while rendering: %.1fs of %.1fs ready after %.1fs (%.2fx real time)",
+                         self.scene_id, done, self.duration, self.went_live_at, rate)
+            if len(frags) == published:
+                continue
+            published = len(frags)
+            with session() as db:
+                sc = db.get(Scene, self.scene_id)
+                if sc is None or sc.status == "ready":
+                    return
+                sc.media = {
+                    "path": self.mp4.relative_to(media_root()).as_posix(), "poster": None, "duration": self.duration,
+                    "init_size": idx["init_size"], "codec": idx["codec"], "pts_offset": round(raw[1][0] - frags[1][0], 5),
+                    "fragments": frags, "sentence_starts": [round(x, 4) for x in self.starts], "live": True,
+                }
 
 
 def normalize_fragments(frags: list[list], keyframes: list[float], duration: float) -> list[list]:

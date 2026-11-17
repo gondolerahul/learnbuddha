@@ -59,8 +59,17 @@ class Settings(BaseSettings):
 
     render_width: int = 1280
     render_height: int = 720
-    render_fps: int = 30
-    worker_threads: int = 3  # scene jobs in flight: their model calls overlap; renders are gated below
+    render_fps: int = 24  # film rate; 30 cost 30% more render time for no visible gain in these drawings
+    # Scene jobs in flight. Scripts and narration are network waits, so all of a course's scenes can be written at once
+    # while renders queue at the render gate (render_slots), earliest scene first.
+    worker_threads: int = 8
+    # How hard the model thinks before writing a scene or answer: low | medium | high. Most of a script's time is
+    # thinking (~8k of ~10.5k output tokens at medium), so lower is faster and cheaper; check richness before lowering.
+    scene_thinking: str = "medium"
+    # ...for what a learner is waiting on: the course's first scene, visual answers, remediation and explain-again.
+    # Measured 2026-11-17 on a 55 s scene: low wrote it in 46 s vs 73 s at medium, same richness score, slightly fewer
+    # labels; the other scenes are written in the background while earlier ones play, so they keep medium.
+    urgent_thinking: str = "low"
     # Lesson renders that may run at once (0 = auto: 3). Fewer slots give each render more threads; scripts and
     # narration (network-bound) still overlap across worker_threads. Answers, recaps and re-explanations never wait.
     render_slots: int = 0

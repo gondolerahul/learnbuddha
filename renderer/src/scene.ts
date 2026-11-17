@@ -600,6 +600,21 @@ export function logicalRect(spec: SceneSpec, tokens: Tokens, el: SceneElement, r
   return { x: (r.x - W / 2) / zf + ox, y: (r.y - H / 2) / zf + oy, w: r.w / zf, h: r.h / zf };
 }
 
+/** Where an element (or "id.anchor" point) is on screen at time t, camera included: the box a tutor's mark is drawn
+ *  around on the paused frame. Logical 1280x720 coordinates; null when the element is unknown or has no box. */
+export function elementScreenBox(ctx: Ctx, spec: SceneSpec, ref: string, t: number, o: RenderOptions): Rect | null {
+  const env = makeEnv(ctx, spec, o);
+  const [id, anchor] = ref.split(".");
+  const el = spec.elements.find((e) => e.id === id);
+  if (!el) return null;
+  let r: Rect | null;
+  if (anchor) {
+    const pt = env.pointOf(ref);
+    r = pt ? { x: pt[0] - 18, y: pt[1] - 18, w: 36, h: 36 } : env.boundsOf(id);
+  } else r = env.boundsOf(id);
+  return r ? screenRect(spec, o.tokens, el, r, t) : null;
+}
+
 /** Camera shots in time order (the order lint messages number them in). */
 export function cameraShots(spec: SceneSpec) {
   return (spec.camera ?? []).filter((k) => typeof k.t === "number").sort((a, b) => a.t - b.t);

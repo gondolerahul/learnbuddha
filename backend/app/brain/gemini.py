@@ -3,6 +3,7 @@ fixer, answer writer and text tutor. Same prompts, schemas and wire format as th
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 import logging
 import time
 from typing import Any
@@ -22,6 +23,11 @@ SERVED: dict[str, int] = {}
 MAX_OUTPUT = 32768  # caps a runaway call (Carbon once spent all of it thinking and returned nothing)
 
 
+def _thinking(urgent: bool) -> str:
+    s = get_settings()
+    return s.urgent_thinking if urgent else s.scene_thinking
+
+
 class GeminiBrain:
     name = "gemini"
 
@@ -37,7 +43,9 @@ class GeminiBrain:
 
     # ───────────── core call ─────────────
 
-    def _json(self, system: str, user: str, schema: dict, effort: str = "medium", op: str = "") -> dict:
+    def _json(self, system: str, user: str, schema: dict, effort: str = "medium", op: str = "", on_text=None) -> dict:
+        """One JSON call with model fallback and retries. With `on_text`, the response is streamed and on_text(text so
+        far) is called as it grows (errors in the callback are logged, never fatal)."""
         from google.genai import errors, types
 
         try:
@@ -57,7 +65,10 @@ class GeminiBrain:
                 if self._thinking_ok.get(model, True):
                     cfg["thinking_config"] = types.ThinkingConfig(thinking_level=THINKING.get(effort, "MEDIUM"))
                 try:
-                    resp = c.models.generate_content(model=model, contents=user, config=types.GenerateContentConfig(**cfg))
+                    if on_text is None:
+                        resp = c.models.generate_content(model=model, contents=user, config=types.GenerateContentConfig(**cfg))
+                    else:
+                        resp = self._stream(c, model, user, types.GenerateContentConfig(**cfg), on_text)
                 except errors.APIError as e:
                     last = e
                     msg = str(e).lower()
@@ -82,6 +93,20 @@ class GeminiBrain:
                 return out
         raise BrainError(f"Gemini failed: {last}")
 
+    @staticmethod
+    def _stream(c, model: str, user: str, config, on_text):
+        text, cand, usage = "", None, None
+        for ch in c.models.generate_content_stream(model=model, contents=user, config=config):
+            usage = getattr(ch, "usage_metadata", None) or usage
+            cand = (getattr(ch, "candidates", None) or [cand])[0] or cand
+            if ch.text:
+                text += ch.text
+                try:
+                    on_text(text)
+                except Exception:  # noqa: BLE001 - the caller's problem, not the call's
+                    log.exception("on_text callback failed")
+        return SimpleNamespace(text=text, candidates=[cand], usage_metadata=usage)
+
     def _parse(self, resp, model: str) -> dict:
         cand = (resp.candidates or [None])[0]
         finish = str(getattr(cand, "finish_reason", "") or "")
@@ -104,26 +129,26 @@ class GeminiBrain:
 
     # ───────────── tasks ─────────────
 
-    def plan(self, req: CourseRequest) -> dict:
+    def plan(self, req: CourseRequest, on_partial=None) -> dict:
         answers = "\n".join(f"- {a.get('question')}: {a.get('answer')}" for a in req.answers) or "(none)"
         user = (
             f"Topic: {req.topic}\nLearner's goal: {req.goal or '(not given)'}\nAvailable time: {req.minutes} minutes\n"
             f"Language: {req.language}\nDiagnostic answers:\n{answers}\n\nDesign the course."
         )
-        return self._json(prompts.planner_system(), user, prompts.PLAN_SCHEMA, effort="high", op="plan")
+        return self._json(prompts.planner_system(), user, prompts.PLAN_SCHEMA, effort="high", op="plan", on_text=on_partial)
 
     def draft_scene(self, ctx: SceneContext) -> dict:
-        return prompts.from_wire(self._json(prompts.scene_system(kit_id=ctx.kit), prompts.scene_user(ctx), prompts.scene_schema(False), op="scene_script"))
+        return prompts.from_wire(self._json(prompts.scene_system(kit_id=ctx.kit), prompts.scene_user(ctx), prompts.scene_schema(False), effort=_thinking(ctx.urgent), op="scene_script"))
 
     def draft_answer(self, ctx: AnswerContext) -> dict:
-        return prompts.from_wire(self._json(prompts.scene_system(answer_mode=True, kit_id=ctx.kit), prompts.answer_user(ctx), prompts.scene_schema(True), op="answer_script"))
+        return prompts.from_wire(self._json(prompts.scene_system(answer_mode=True, kit_id=ctx.kit), prompts.answer_user(ctx), prompts.scene_schema(True), effort=_thinking(True), op="answer_script"))
 
     def tutor_reply(self, ctx: TutorContext, utterance: str) -> dict:
         user = (
             f"Course: {ctx.course_title} · learner: {ctx.level} · language: {ctx.language}\n"
             f"Scene: {ctx.scene_title}\nNarration so far (last part):\n{' '.join(ctx.script_so_far[-6:])}\n"
             f"Sentence being spoken when they interrupted: {ctx.current_sentence}\n"
-            f"On screen: {' | '.join(ctx.on_screen[:20])}\n"
+            f"On screen ([id] what): {' | '.join(ctx.on_screen[:20])}\n"
             f"Recent Q&A: {json.dumps(ctx.recent_qa[-3:], ensure_ascii=False)}\n\n"
             f'The learner said: "{utterance}"'
         )

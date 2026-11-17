@@ -8,6 +8,7 @@ import logging
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -22,6 +23,11 @@ log = logging.getLogger("lb.tts")
 
 class TTSError(RuntimeError):
     pass
+
+
+# Narration calls in flight across all scenes: with every scene of a course scripted at once, unbounded fan-out
+# (scenes x sentences) would run into Gemini TTS rate limits.
+_TTS_SLOTS = threading.BoundedSemaphore(8)
 
 
 def synthesize(sentences: list[str], voice: str, style: str, language: str = "English") -> list[array.array]:
@@ -57,38 +63,44 @@ def _gemini_usage(text: str, voice: str, style: str, language: str) -> tuple[arr
     s = get_settings()
     c = genai_client("tts")
     last: Exception | None = None
-    for attempt in range(3):
+    for attempt in range(5):
         try:
-            if s.google_backend == "vertex":
-                resp = c.models.generate_content(
-                    model=s.gemini_tts_model,
-                    contents=[{"role": "user", "parts": [{"text": text, "speech_metadata": {"style": f"{style}; speak {language}"}}]}],
-                    config={"response_modalities": ["AUDIO"], "speech_config": {"voice_config": {"voice": voice}}},
-                )
-                data = resp.candidates[0].content.parts[0].inline_data.data  # WAV bytes (already decoded)
-                pcm, rate = wav_to_pcm(data) if data[:4] == b"RIFF" else (_raw(data), 24000)
-                return resample(pcm, rate, NARRATION_RATE), costs.gemini_tts_units(getattr(resp, "usage_metadata", None), len(pcm) / rate)
-            interaction = c.interactions.create(
-                model=s.gemini_tts_model,
-                input=[{
-                    "type": "user_input",
-                    "content": [{
-                        "type": "text",
-                        "text": text,
-                        "annotations": [{"type": "speech_metadata", "style": f"{style}; speak {language}"}],
-                    }],
-                }],
-                response_format={"type": "audio"},
-                generation_config={"speech_config": [{"voice": voice}]},
-            )
-            data = base64.b64decode(interaction.output_audio.data)
-            pcm, rate = wav_to_pcm(data) if data[:4] == b"RIFF" else (_raw(data), 24000)
-            return resample(pcm, rate, NARRATION_RATE), costs.gemini_tts_units(getattr(interaction, "usage", None), len(pcm) / rate)
-        except Exception as e:  # network / quota; retried, then surfaced
+            with _TTS_SLOTS:
+                return _gemini_call(c, s, text, voice, style, language)
+        except Exception as e:  # network / quota; retried with backoff, then surfaced
             last = e
             log.warning("gemini tts failed (attempt %d): %s", attempt + 1, e)
-            time.sleep(1.5 * (attempt + 1))
+            time.sleep(min(20.0, 2.0 * 2 ** attempt))
     raise TTSError(f"Gemini TTS failed: {last}")
+
+
+def _gemini_call(c, s, text: str, voice: str, style: str, language: str) -> tuple[array.array, dict]:
+    """One Gemini TTS request (no retries; see _gemini_usage)."""
+    if s.google_backend == "vertex":
+        resp = c.models.generate_content(
+            model=s.gemini_tts_model,
+            contents=[{"role": "user", "parts": [{"text": text, "speech_metadata": {"style": f"{style}; speak {language}"}}]}],
+            config={"response_modalities": ["AUDIO"], "speech_config": {"voice_config": {"voice": voice}}},
+        )
+        data = resp.candidates[0].content.parts[0].inline_data.data  # WAV bytes (already decoded)
+        pcm, rate = wav_to_pcm(data) if data[:4] == b"RIFF" else (_raw(data), 24000)
+        return resample(pcm, rate, NARRATION_RATE), costs.gemini_tts_units(getattr(resp, "usage_metadata", None), len(pcm) / rate)
+    interaction = c.interactions.create(
+        model=s.gemini_tts_model,
+        input=[{
+            "type": "user_input",
+            "content": [{
+                "type": "text",
+                "text": text,
+                "annotations": [{"type": "speech_metadata", "style": f"{style}; speak {language}"}],
+            }],
+        }],
+        response_format={"type": "audio"},
+        generation_config={"speech_config": [{"voice": voice}]},
+    )
+    data = base64.b64decode(interaction.output_audio.data)
+    pcm, rate = wav_to_pcm(data) if data[:4] == b"RIFF" else (_raw(data), 24000)
+    return resample(pcm, rate, NARRATION_RATE), costs.gemini_tts_units(getattr(interaction, "usage", None), len(pcm) / rate)
 
 
 def _raw(data: bytes) -> array.array:
