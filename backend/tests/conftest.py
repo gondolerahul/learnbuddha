@@ -17,6 +17,7 @@ os.environ.update({
     "ANTHROPIC_API_KEY": "",
     "GEMINI_API_KEY": "",
     "GOOGLE_CLOUD_PROJECT": "",  # tests never call Vertex AI, even when backend/.env sets a project
+    "GEMINI_BRAIN_MODEL": "gemini-4-hydrogen",  # the default, whatever backend/.env picks for local trials
     "USD_INR": "90",  # fixed rate: no exchange-rate lookups from tests
     "FX_LIVE": "false",
 })

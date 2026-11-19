@@ -36,6 +36,11 @@ M = 1_000_000
 #     (shared across Gemini 3+ models) — charged here at list price, so small runs may really cost less.
 PRICES: dict[str, list[tuple[str, dict[str, float]]]] = {
     "claude-opus-5-5": [("2026-01-01", {"in": 4.0, "out": 20.0, "cache_read": 0.20, "cache_write": 8.0, "search": 10.0})],
+    # Sonnet 5.5 ($2 / $10, cache read $0.10) and Haiku 5.5 ($0.10 / $0.50 for prompts up to 100K tokens; its cache read
+    # is not published, 10% of input assumed) per Anthropic's list, checked 2026-11-19. On Vertex AI the global endpoint
+    # charges these list prices; regional endpoints (CLAUDE_VERTEX_REGION=us|eu|...) charge about 10% more.
+    "claude-sonnet-5-5": [("2026-01-01", {"in": 2.0, "out": 10.0, "cache_read": 0.10, "cache_write": 4.0, "search": 10.0})],
+    "claude-haiku-5-5": [("2026-01-01", {"in": 0.10, "out": 0.50, "cache_read": 0.01, "cache_write": 0.20, "search": 10.0})],
     "claude-opus-5": [("2026-01-01", {"in": 5.0, "out": 25.0, "cache_read": 0.50, "cache_write": 10.0, "search": 10.0})],
     "claude-opus-4-8": [("2026-01-01", {"in": 5.0, "out": 25.0, "cache_read": 0.50, "cache_write": 10.0, "search": 10.0})],
     # Hydrogen (released 2026-11-12): $1.50 in / $7.50 out per Google's launch post (checked 2026-11-15). The cached-input
@@ -57,7 +62,8 @@ PRICES: dict[str, list[tuple[str, dict[str, float]]]] = {
 }
 
 PRICE_NOTES = [
-    "List prices: Anthropic (Claude Opus 5.5) and Google's Gemini pricing page (Vertex AI pay-as-you-go).",
+    "List prices: Anthropic (Claude Opus, Sonnet and Haiku 5.5; Vertex AI global endpoint) and Google's Gemini pricing page (Vertex AI pay-as-you-go).",
+    "Gemini 4 Neon has no published price yet: its calls are recorded at ₹0.",
     "Gemini 4 Hydrogen (the default brain): $1.50 / $7.50 per 1M tokens (cached input assumed at $0.15).",
     "Gemini 4 Carbon/Argon are at an introductory rate until 30 Nov 2026 ($2 / $10 per 1M tokens), then $4 / $20.",
     "Google Search grounding is charged at $14 per 1,000 searches; the first 5,000 searches a month are free, so actual bills can be lower.",

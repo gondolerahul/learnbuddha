@@ -36,6 +36,14 @@ def init_db() -> None:
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS brain varchar(32) DEFAULT ''"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS direction jsonb DEFAULT '{}'::jsonb"))
         conn.execute(text("ALTER TABLE scenes ADD COLUMN IF NOT EXISTS direction jsonb DEFAULT '{}'::jsonb"))
+        # Courses used to store only the provider ("gemini"); store the model that wrote the plan, so follow-up scenes,
+        # answers and the tutor keep using it whichever model is the default now.
+        conn.execute(text(
+            "UPDATE courses c SET brain = u.model FROM ("
+            "  SELECT DISTINCT ON (course_id) course_id, model FROM usage_events"
+            "  WHERE operation = 'plan' AND course_id IS NOT NULL ORDER BY course_id, created_at"
+            ") u WHERE u.course_id = c.id AND c.brain IN ('gemini', 'anthropic') AND length(u.model) <= 32"
+        ))
 
 
 @contextmanager

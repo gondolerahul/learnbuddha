@@ -31,10 +31,11 @@ def _thinking(urgent: bool) -> str:
 class GeminiBrain:
     name = "gemini"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None, allow_fallback: bool = True) -> None:
         s = get_settings()
-        self.model = s.gemini_brain_model
-        self.fallback_model = s.gemini_brain_fallback_model
+        self.model = model or s.gemini_brain_model
+        # A model the learner picked is never swapped for another without saying so: only the default model falls back.
+        self.fallback_model = s.gemini_brain_fallback_model if allow_fallback else ""
         self._thinking_ok: dict[str, bool] = {}
 
     @property
@@ -81,7 +82,9 @@ class GeminiBrain:
                         time.sleep(1.0 + attempt)
                         continue
                     if code in (403, 404):
-                        log.warning("%s unavailable for this request (%s); trying fallback", model, code)
+                        if model == models[-1]:
+                            raise BrainError(f"{model} is not available on this Google Cloud project ({code}): {getattr(e, 'message', '') or e}") from e
+                        log.warning("%s unavailable for this request (%s); trying fallback %s", model, code, models[-1])
                         break  # next model
                     if code == 429 or code >= 500:
                         time.sleep(min(20, 2 ** attempt * 2))

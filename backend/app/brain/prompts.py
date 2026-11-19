@@ -298,8 +298,11 @@ def from_wire(raw: dict) -> dict:
     """props_json strings → props dicts. Unparseable props become a validation issue."""
     elements = []
     for el in raw.get("elements", []):
+        if not isinstance(el, dict):
+            continue  # a malformed element (not an object) is skipped, not fatal
         try:
-            props = json.loads(el.get("props_json") or "{}")
+            pj = el.get("props_json")
+            props = pj if isinstance(pj, dict) else json.loads(pj or "{}")
             if not isinstance(props, dict):
                 raise ValueError("props must be an object")
         except (json.JSONDecodeError, ValueError) as e:

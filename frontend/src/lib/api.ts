@@ -1,4 +1,4 @@
-export interface BrainOption { id: string; label: string; default: boolean }
+export interface BrainOption { id: string; label: string; provider: "gemini" | "anthropic" | "mock"; note: string; via: string; default: boolean }
 export interface Health {
   ok: boolean; brain: string; brains: BrainOption[]; tts: string; voice: string; kits: Record<string, string>;
   google: { backend: "vertex" | "studio" | "none"; project: string | null; location: string | null; live_location: string | null };
@@ -12,7 +12,7 @@ export interface SceneOut {
 }
 export interface LessonOut { id: string; title: string; objective: string; dropped: boolean; checkpoint_count: number; scenes: SceneOut[] }
 export interface CourseOut {
-  id: string; topic: string; goal: string; title: string; summary: string; level: string; language: string; kit: string; brain: string; minutes: number;
+  id: string; topic: string; goal: string; title: string; summary: string; level: string; language: string; kit: string; brain: string; brain_label?: string; written_by?: { id: string; label: string; calls: number }[]; minutes: number;
   status: string; error: string | null; sources: { title: string; url: string }[]; version: number; created_at: string; lessons: LessonOut[];
   estimated_seconds: number; cached?: boolean;
 }

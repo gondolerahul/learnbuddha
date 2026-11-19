@@ -5,11 +5,11 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from . import costs, jobs, kit
-from .brain import BrainError, CourseRequest, brain_options, get_brain, resolve_brain
+from .brain import BrainError, CourseRequest, brain_label, brain_options, get_brain, resolve_brain
 from .genai_client import describe as google_describe
 from .config import get_settings
 from .db import get_db
@@ -27,7 +27,7 @@ class DiagnoseIn(BaseModel):
     goal: str = Field(default="", max_length=500)
     minutes: int = Field(default=8, ge=2, le=60)
     language: str = "English"
-    brain: str = ""  # anthropic | gemini | mock; empty = default
+    brain: str = ""  # a model id from brain.MODELS (or a provider name: gemini | anthropic | mock); empty = default
 
 
 class Answer(BaseModel):
@@ -77,9 +77,14 @@ def course_out(db: Session, c: Course) -> dict:
             "checkpoint_count": len((L.checkpoint or {}).get("questions", [])), "scenes": [scene_out(s) for s in scenes],
         })
     total = sum(s["target_seconds"] for L in out_l for s in L["scenes"] if not s["dropped"])
+    # the models that really wrote it (a fallback model shows up here), most calls first
+    wrote = db.execute(
+        select(UsageEvent.model, func.count()).where(UsageEvent.course_id == c.id, UsageEvent.operation.in_(["plan", "scene_script"]))
+        .group_by(UsageEvent.model).order_by(func.count().desc())
+    ).all()
     return {
         "id": c.id, "topic": c.topic, "goal": c.goal, "title": c.title, "summary": c.summary, "level": c.level, "language": c.language,
-        "kit": c.kit, "brain": resolve_brain(c.brain or None), "minutes": c.minutes, "status": c.status, "error": c.error, "sources": c.sources, "version": c.version,
+        "kit": c.kit, "brain": resolve_brain(c.brain or None), "brain_label": brain_label(resolve_brain(c.brain or None)), "written_by": [{"id": m, "label": brain_label(m), "calls": n} for m, n in wrote], "minutes": c.minutes, "status": c.status, "error": c.error, "sources": c.sources, "version": c.version,
         "created_at": c.created_at.isoformat(), "lessons": out_l, "estimated_seconds": total,
     }
 
@@ -108,7 +113,7 @@ def health() -> dict:
     s = get_settings()
     return {
         "ok": True, "brain": s.brain, "brains": brain_options(), "tts": s.tts, "voice": s.voice, "kits": {k: v for k, v in kit.KITS.items() if k not in kit.RETIRED_KITS}, "google": google_describe(),
-        "models": {"claude": s.claude_model, "gemini_brain": s.gemini_brain_model, "gemini_tts": s.gemini_tts_model, "gemini_live": s.gemini_live_model},
+        "claude_via": s.claude_via, "models": {"claude": s.claude_model, "gemini_brain": s.gemini_brain_model, "gemini_tts": s.gemini_tts_model, "gemini_live": s.gemini_live_model},
         "gemini_served": _gemini_served(),
     }
 

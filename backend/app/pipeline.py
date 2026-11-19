@@ -19,7 +19,7 @@ from typing import Any
 from sqlalchemy import select
 
 from . import jobs, kit, media, sfx, tts
-from .brain import AnswerContext, BrainError, CourseRequest, SceneContext, get_brain, resolve_brain
+from .brain import AnswerContext, BrainError, CourseRequest, SceneContext, get_brain, provider_of, resolve_brain
 from .config import get_settings
 from .db import session
 from .models import QA, Course, Lesson, Scene
@@ -34,10 +34,16 @@ def sha(obj: Any) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:40]
 
 
+def brain_model(brain: str) -> str:
+    """The brain and the model it runs on: courses made by different models are never shared."""
+    m = resolve_brain(brain or None)
+    return "mock" if m == "mock" else f"{provider_of(m)}:{m}"
+
+
 def course_cache_key(topic: str, goal: str, minutes: int, answers: list[dict], kit_id: str, language: str, brain: str = "") -> str:
     norm = " ".join(topic.lower().split())
     ans = sorted(f"{a.get('question', '')}={a.get('answer', '')}".lower() for a in answers)
-    return sha([norm, " ".join(goal.lower().split()), minutes, ans, kit_id, language.lower(), resolve_brain(brain or None), PIPELINE_VERSION])
+    return sha([norm, " ".join(goal.lower().split()), minutes, ans, kit_id, language.lower(), brain_model(brain), PIPELINE_VERSION])
 
 
 def course_brain(course_id: str):
@@ -205,7 +211,7 @@ def scene_direction(S: dict) -> dict:
 def scene_cache_key(c: Course, lesson: Lesson, sc: Scene, extra: Any = None) -> str:
     s = get_settings()
     return sha([
-        c.cache_key, resolve_brain(c.brain or None), lesson.title, lesson.objective, sc.title, sc.objective, sc.key_points, sc.visual_idea, sc.target_seconds,
+        c.cache_key, brain_model(c.brain), lesson.title, lesson.objective, sc.title, sc.objective, sc.key_points, sc.visual_idea, sc.target_seconds,
         sc.direction or {},
         c.kit, c.language, c.level, s.tts, kit.tokens(c.kit)["voice"], s.render_width, s.render_height, s.render_fps, PIPELINE_VERSION, extra,
     ])

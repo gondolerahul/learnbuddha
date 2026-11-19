@@ -106,12 +106,24 @@ export default function Home() {
         </div>
         {brains.length > 1 && (
           <div className="field">
-            <label>Tutor model</label>
-            <div className="chips">
-              {brains.map((b) => (
-                <button type="button" key={b.id} className={`chip ${brain === b.id ? "on" : ""}`} onClick={() => { setBrain(b.id); setQuestions(null); }}>{b.label}</button>
-              ))}
-            </div>
+            <label>Model that writes the course</label>
+            {(["gemini", "anthropic"] as const).map((p) => {
+              const group = brains.filter((b) => b.provider === p);
+              if (!group.length) return null;
+              return (
+                <div key={p} className="chips" role="radiogroup" aria-label={p === "gemini" ? "Gemini models" : "Claude models"}>
+                  {group.map((b) => (
+                    <button type="button" role="radio" aria-checked={brain === b.id} key={b.id} title={b.note} className={`chip ${brain === b.id ? "on" : ""}`} onClick={() => { setBrain(b.id); setQuestions(null); }}>
+                      {b.label}{b.default ? " · default" : ""}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+            {(() => {
+              const b = brains.find((x) => x.id === brain);
+              return b ? <span className="muted small">{b.note}{b.via ? ` · on ${b.via}` : ""}</span> : null;
+            })()}
           </div>
         )}
         <div className="field">

@@ -94,7 +94,7 @@ export function drawSetLabels(
     // a label the camera would crop bows out until the shot shows it whole again
     const lr = Label.bounds(env, props, el);
     let vis = visibleShare(env, el, lr);
-    if (vis > 0 && lr && onPinnedText(env, el, lr, absT)) vis = 0; // never print over a pinned heading
+    if (vis > 0 && lr && onPinnedText(env, el, lr, absT)) vis = 0; // never print over a heading or another label
     const ph: Phase = { local, k: clamp(local / 0.9), dur: 0.9, alpha: alpha * fadeOut * clamp((vis - 0.96) / 0.04) };
     if (ph.alpha > 0.01) Label.draw(env, props, ph, { ...el, id: `${el.id}.label${i}` });
   }
@@ -172,11 +172,13 @@ export function onPinnedText(env: Env, el: SceneElement, r: Rect, absT: number):
     box = { x: (r.x - ox) * zf + W / 2, y: (r.y - oy) * zf + H / 2, w: r.w * zf, h: r.h * zf };
   }
   for (const e of env.spec.elements) {
-    if (!e.fixed || e === el || !["Heading", "Text", "Callout", "TitleCard"].includes(e.type)) continue;
+    if (e === el || !["Heading", "Text", "Callout", "TitleCard", "Label", "Stamp"].includes(e.type)) continue;
     if (absT < e.at || (typeof e.until === "number" && absT > e.until + 0.35)) continue;
-    const b = env.boundsOf(e.id);
-    if (!b) continue;
-    const ix = Math.min(box.x + box.w, b.x + b.w) - Math.max(box.x, b.x), iy = Math.min(box.y + box.h, b.y + b.h) - Math.max(box.y, b.y);
+    const b0 = env.boundsOf(e.id);
+    if (!b0) continue;
+    // pinned text is compared on screen; text that moves with the camera, in the set's own (logical) space
+    const a = e.fixed ? box : r;
+    const ix = Math.min(a.x + a.w, b0.x + b0.w) - Math.max(a.x, b0.x), iy = Math.min(a.y + a.h, b0.y + b0.h) - Math.max(a.y, b0.y);
     if (ix > 4 && iy > 4) return true;
   }
   return false;
