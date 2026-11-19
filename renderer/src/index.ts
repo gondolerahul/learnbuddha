@@ -12,6 +12,8 @@ import inkwash from "../stylekit/inkwash-v1/tokens.json";
 import schematic from "../stylekit/schematic-v1/tokens.json";
 import cinematicDark from "../stylekit/cinematic-dark-v1/tokens.json";
 import comic from "../stylekit/comic-v1/tokens.json";
+import flatExplainer from "../stylekit/flat-explainer-v1/tokens.json";
+import riso from "../stylekit/riso-v1/tokens.json";
 import type { Tokens } from "./types";
 
 export const KITS: Record<string, Tokens> = {
@@ -26,7 +28,12 @@ export const KITS: Record<string, Tokens> = {
   [schematic.id]: schematic as Tokens,
   [cinematicDark.id]: cinematicDark as Tokens,
   [comic.id]: comic as Tokens,
+  [flatExplainer.id]: flatExplainer as Tokens,
+  [riso.id]: riso as Tokens,
 };
+
+/** Kits kept only so scenes made with them still render; the planner and the style picker no longer offer them. */
+export const RETIRED_KITS = new Set(["inkwash-v1", "comic-v1"]);
 
 export function kitTokens(id: string | undefined): Tokens {
   return KITS[id ?? ""] ?? KITS["zen-board-v1"];

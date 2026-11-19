@@ -57,6 +57,23 @@ export function textureTile(env: Env, kind: string): any {
     g.arc(0, size, 2.3, 0, Math.PI * 2);
     g.arc(size, size, 2.3, 0, Math.PI * 2);
     g.fill();
+  } else if (kind === "riso") {
+    // riso stock and ink: fine speckle of black and the drums' colours, never even
+    const inks = ["#201E22", "#FF48B0", "#0078BF", "#201E22"];
+    for (let i = 0; i < 1600; i++) {
+      g.globalAlpha = 0.05 + r() * 0.12;
+      g.fillStyle = inks[Math.floor(r() * inks.length)];
+      g.beginPath();
+      g.arc(r() * size, r() * size, 0.35 + r() ** 4 * 1.1, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 0.18;
+    g.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 260; i++) {
+      g.beginPath();
+      g.arc(r() * size, r() * size, 0.3 + r() * 0.9, 0, Math.PI * 2);
+      g.fill();
+    }
   } else if (kind === "fibre") {
     g.lineCap = "round";
     for (let i = 0; i < 260; i++) {
@@ -87,7 +104,7 @@ export function applyTexture(env: Env, g: any, w: number, h: number, kind: strin
     g.globalAlpha = 0.5 * strength;
   } else {
     g.globalCompositeOperation = "source-atop";
-    g.globalAlpha = (kind === "halftone" ? 0.2 : kind === "granulation" ? 0.55 : 0.3) * strength;
+    g.globalAlpha = (kind === "halftone" ? 0.2 : kind === "granulation" ? 0.55 : kind === "riso" ? 0.9 : 0.3) * strength;
   }
   g.fillStyle = pat;
   g.fillRect(0, 0, w, h);

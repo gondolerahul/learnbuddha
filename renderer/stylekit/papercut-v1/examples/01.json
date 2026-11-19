@@ -1,0 +1,165 @@
+{
+ "title": "Why the moon changes shape",
+ "kit": "papercut-v1",
+ "sentences": [
+  "Every night the moon looks a little different.",
+  "That is because the moon travels around the Earth.",
+  "The sun lights one half of it, like a lamp.",
+  "As it goes round, we see more or less of the lit side."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the paper night appears",
+   "lead": "orbit",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "the moon sets off round the Earth",
+   "lead": "orbit",
+   "shot": {
+    "shot": "medium",
+    "on": "orbit.center",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    4
+   ],
+   "change": "the lit half",
+   "lead": "orbit",
+   "shot": {
+    "shot": "medium",
+    "on": "orbit",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "the whole journey",
+   "lead": "buddy",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "The moon's journey"
+   },
+   "fixed": true
+  },
+  {
+   "id": "orbit",
+   "type": "Orbits",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "center": "earth",
+    "centerSize": 130,
+    "stages": [
+     {
+      "name": "start",
+      "cue": [
+       1,
+       5
+      ]
+     }
+    ],
+    "bodies": [
+     {
+      "name": "moon",
+      "kind": "moon",
+      "radius": 300,
+      "size": 40,
+      "period": 7,
+      "label": "Moon"
+     }
+    ]
+   }
+  },
+  {
+   "id": "buddy",
+   "type": "Guide",
+   "cue": [
+    0,
+    3
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "x": 1120,
+    "y": 580,
+    "size": 150,
+    "poses": [
+     {
+      "cue": [
+       0,
+       3
+      ],
+      "pose": "wave"
+     },
+     {
+      "cue": [
+       2,
+       1
+      ],
+      "pose": "point"
+     },
+     {
+      "cue": [
+       3,
+       5
+      ],
+      "pose": "cheer"
+     }
+    ],
+    "pointAt": "orbit.moon",
+    "talk": true
+   }
+  }
+ ]
+}

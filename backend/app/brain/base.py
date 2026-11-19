@@ -40,6 +40,12 @@ class SceneContext:
     original_script: list[str] = field(default_factory=list)
     kit: str = ""
     urgent: bool = False  # a learner is waiting for this one (the course's first scene, a remediation, an explain-again)
+    # the planner's direction: how the course looks and moves, this scene's one image and set, and (rarely) the image
+    # it opens on because the previous scene ends there
+    design_read: str = ""
+    central_image: str = ""
+    set_name: str = ""
+    opens_with: str = ""
 
 
 @dataclass
@@ -76,7 +82,7 @@ class Brain(Protocol):
         """{title, summary, level, lessons:[{title, objective, scenes:[...], checkpoint:{questions:[...]}}]}"""
 
     def draft_scene(self, ctx: SceneContext) -> dict:
-        """{sentences:[...], elements:[{id,type,cue,until_cue,dur,props}], camera:[...]}"""
+        """{sentences:[...], beats:[{cue,change,lead,shot,hold}], elements:[{id,type,cue,until_cue,dur,props}]}"""
 
     def draft_answer(self, ctx: AnswerContext) -> dict:
         """Same shape as draft_scene, for a 15–45 s visual answer."""

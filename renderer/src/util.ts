@@ -56,9 +56,33 @@ export function fontSize(tokens: Tokens, size: string | number | undefined, fall
   return tokens.sizes[size ?? fallback] ?? tokens.sizes[fallback];
 }
 
+/**
+ * A canvas font string for a text role. Kits name their faces in tokens.fonts (hand = body and labels by default,
+ * serif, display = headings and titles, label, mono) and their weights in tokens.type; heavy text with no family asked
+ * for is a heading and takes the display face.
+ */
 export function font(tokens: Tokens, family: string | undefined, px: number, weight = 400) {
-  const fam = family === "serif" || family === "math" ? tokens.fonts.serif : tokens.fonts.hand;
-  return `${weight} ${Math.round(px)}px ${fam}`;
+  const f: any = tokens.fonts;
+  const ty: any = (tokens as any).type ?? {};
+  let fam = f.hand;
+  let w = weight;
+  if (family === "serif" || family === "math") fam = f.serif;
+  else if (family === "mono") fam = f.mono ?? f.hand;
+  else if (family === "display" || ((!family || family === "hand") && weight >= 600 && f.display)) {
+    fam = f.display ?? f.hand;
+    w = ty.displayWeight ?? weight;
+  } else if (family === "label") {
+    fam = f.label ?? f.hand;
+    w = ty.labelWeight ?? weight;
+  } else if (weight === 400 && ty.bodyWeight) w = ty.bodyWeight;
+  return `${w} ${Math.round(px)}px ${fam}`;
+}
+
+/** The kit's letter case for a role ("upper" for display or labels in some kits). */
+export function caseFor(tokens: Tokens, role: string | undefined, text: string): string {
+  const ty: any = (tokens as any).type ?? {};
+  const c = role === "display" ? ty.case : role === "label" ? ty.labelCase : undefined;
+  return c === "upper" ? text.toLocaleUpperCase() : text;
 }
 
 export function unionRect(rs: (Rect | null)[]): Rect | null {

@@ -1,10 +1,11 @@
 // Illustration & motion components: Prop, Particles, Tube, Journey, Label, Guide, and the scene systems
 // Landscape, Nephron and Body. All motion is a pure function of time (deterministic).
 import type { Component, Env, Rect, SceneElement } from "../types";
-import { artFor, circle, ellipse, face, gloss, line, mix, poly, shape, smooth, type Art, type P } from "../art/paint";
+import { artFor, boilPose, circle, ellipse, face, gloss, line, mix, poly, shape, smooth, type Art, type P } from "../art/paint";
 import { PROPS } from "../art/props";
 import { applyTexture } from "../art/texture";
 import { drawText, layoutText } from "../text";
+import { inkStroke } from "../ink";
 import { clamp, color, ease, hash, lerp, num, rng } from "../util";
 import { bell, EASE_IN_OUT, EASE_OUT, flow, loop, seeded, smoothNoise, spring, SPRINGS, wave } from "../motion";
 
@@ -180,8 +181,10 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
   }
   const s = size / 100;
   const tq = Math.floor(o.t * PROP_ANIM_FPS + 1e-6) / PROP_ANIM_FPS;
+  // every drawing on screen is traced again at the same moment (line boil), so the pose follows scene time
+  const pose = boilPose(env.tokens, (env as any).t ?? o.t);
   const drawInto = (g: any) => {
-    const A = artFor({ ...env, ctx: g } as Env, s);
+    const A = artFor({ ...env, ctx: g } as Env, s, { seed: o.seed ?? 0, pose });
     if (o.face === false) A.cartoon = false;
     g.save();
     if (o.rotate) g.rotate(o.rotate);
@@ -206,7 +209,7 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
   const [lx0, ly0] = lightDir(env);
   const lx = Math.round(lx0 * 100) / 100, ly = Math.round(ly0 * 100) / 100;
   const key = [kind, size, pw, ph, dev, tq, o.state ?? 0, o.color ?? "", o.flip ? 1 : 0, o.rotate ?? 0, o.seed ?? 0,
-    o.face === false ? 0 : 1, o.talk ?? 0, o.mood ?? "", o.scaleX ?? 1, o.scaleY ?? 1, lx, ly].join("|");
+    o.face === false ? 0 : 1, o.talk ?? 0, o.mood ?? "", o.scaleX ?? 1, o.scaleY ?? 1, lx, ly, pose].join("|");
   const c = cachedSprite(env, key, pw, ph, (g) => {
   g.setTransform(dev, 0, 0, dev, (pw / dev / 2) * dev, (ph / dev / 2) * dev);
   drawInto(g);
@@ -247,7 +250,16 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
   ctx.save();
   ctx.globalAlpha *= o.alpha ?? 1;
   ctx.translate(x, y);
-  const grounded = o.grounded ?? GROUNDED.has(kind);
+  const printed = art.style === "riso"; // inks overprint the paper and each other; no soft shadows in print
+  const pj = num(art.poseJitter, 0);
+  if (pj > 0) {
+    // stop motion: every exposure the piece sits a hair differently, as if placed again by hand
+    const pose = Math.floor(((env as any).t ?? o.t) * Math.max(1, num((env.tokens.motion as any).hold, 12)) + 1e-6);
+    const r = rng(hash(`${o.seed ?? 0}|${kind}|${pose}`));
+    ctx.translate((r() * 2 - 1) * pj, (r() * 2 - 1) * pj);
+    ctx.rotate((r() * 2 - 1) * 0.005);
+  }
+  const grounded = !printed && (o.grounded ?? GROUNDED.has(kind));
   if (grounded) {
     // contact shadow: a soft oval on the ground, pushed away from the light
     ctx.save();
@@ -259,7 +271,7 @@ export function drawProp(env: Env, kind: string, x: number, y: number, size: num
     ctx.fill();
     ctx.restore();
   }
-  if (!emissive && num(art.shadow, 0.14) > 0) {
+  if (!emissive && !printed && num(art.shadow, 0.14) > 0) {
     // lift shadow (device px, so it is the same at every camera zoom), cast away from the light
     ctx.shadowColor = `rgba(40,30,20,${num(art.shadow, 0.14)})`;
     ctx.shadowBlur = size * 0.09 * dev;
@@ -314,7 +326,50 @@ function entranceXf(env: Env, kind: string, local: number, k: number): { s: numb
 }
 
 function labelBlock(env: Env, text: string, x: number, y: number, size: any = "sm", maxWidth = 260) {
-  return layoutText(env, { text, x, y, size, align: "center", maxWidth, maxLines: 2 });
+  return layoutText(env, { text, x, y, size, align: "center", maxWidth, maxLines: 2, role: "label" });
+}
+
+/** The kit's label treatment (tokens.type.labelStyle): leader | chip | tag | strip | note. */
+function labelStyle(env: Env): string {
+  return String(((env.tokens as any).type ?? {}).labelStyle ?? "leader");
+}
+
+/** A box behind a label for kits that set labels on chips, tags or paper strips. */
+function labelBacking(env: Env, r: Rect, style: string, alpha: number, k: number) {
+  if (style === "leader" || style === "note") return;
+  const { ctx } = env;
+  const ty: any = (env.tokens as any).type ?? {};
+  const pad = style === "chip" ? 8 : 10;
+  const x = r.x - pad, y = r.y - pad * 0.55, w = r.w + pad * 2, h = r.h + pad * 1.1;
+  ctx.save();
+  ctx.globalAlpha *= alpha * clamp(k * 2.5);
+  if (style === "strip") {
+    // a strip of paper, slightly askew, with a soft shadow
+    const rot = ((hash(String(r.x) + String(r.y)) % 5) - 2) * 0.012;
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(rot);
+    ctx.translate(-(x + w / 2), -(y + h / 2));
+    ctx.fillStyle = "rgba(30,20,10,0.18)";
+    ctx.fillRect(x + 3, y + 4, w, h);
+    ctx.fillStyle = color(env.tokens, ty.chipFill ?? "note");
+    ctx.fillRect(x, y, w, h);
+  } else {
+    const rr = style === "chip" ? 6 : h / 2;
+    ctx.beginPath();
+    const anyCtx = ctx as any;
+    if (typeof anyCtx.roundRect === "function") anyCtx.roundRect(x, y, w, h, rr);
+    else ctx.rect(x, y, w, h);
+    ctx.fillStyle = color(env.tokens, ty.chipFill ?? "paperShade");
+    ctx.globalAlpha *= style === "chip" ? 0.82 : 1;
+    ctx.fill();
+    if (style === "chip") {
+      ctx.globalAlpha /= 0.82;
+      ctx.strokeStyle = color(env.tokens, ty.chipLine ?? "muted");
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 /** A label for a point on a path: by default its bottom edge sits `gap` px above the path, so wrapped lines never land on it. */
@@ -621,38 +676,51 @@ export const Journey: Component = {
 
 export const Label: Component = {
   inDur: () => 0.9,
-  bounds: (env, p) => labelBlock(env, String(p.text ?? ""), num(p.x, 640), num(p.y, 360), p.size ?? "sm", num(p.maxWidth, 240)).rect,
+  bounds: (env, p) => {
+    const r = labelBlock(env, String(p.text ?? ""), num(p.x, 640), num(p.y, 360), p.size ?? "sm", num(p.maxWidth, 240)).rect;
+    const st = labelStyle(env);
+    return st === "leader" || st === "note" ? r : { x: r.x - 10, y: r.y - 6, w: r.w + 20, h: r.h + 12 };
+  },
   draw: (env, p, ph, el) => {
     const b = labelBlock(env, String(p.text ?? ""), num(p.x, 640), num(p.y, 360), p.size ?? "sm", num(p.maxWidth, 240));
     const tgt = env.pointOf(p.target);
     const { ctx } = env;
-    const col = color(env.tokens, p.color ?? "inkSoft");
+    const st = labelStyle(env);
+    const col = color(env.tokens, p.color ?? (((env.tokens as any).type ?? {}).leaderColor ?? "inkSoft"));
+    const pad = st === "leader" || st === "note" ? 0 : 10;
     if (tgt) {
       const r = b.rect;
       const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
       // leave the label from the side facing the target
       const from: P = Math.abs(tgt[0] - cx) / (r.w / 2 + 1) > Math.abs(tgt[1] - cy) / (r.h / 2 + 1)
-        ? [tgt[0] > cx ? r.x + r.w + 6 : r.x - 6, cy]
-        : [cx, tgt[1] > cy ? r.y + r.h + 4 : r.y - 4];
+        ? [tgt[0] > cx ? r.x + r.w + 6 + pad : r.x - 6 - pad, cy]
+        : [cx, tgt[1] > cy ? r.y + r.h + 4 + pad * 0.6 : r.y - 4 - pad * 0.6];
       const k = ease.inOut(clamp(ph.k / 0.55));
-      ctx.save();
-      ctx.globalAlpha *= ph.alpha;
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(from[0], from[1]);
-      ctx.lineTo(lerp(from[0], tgt[0], k), lerp(from[1], tgt[1], k));
-      ctx.stroke();
+      const end: P = [lerp(from[0], tgt[0], k), lerp(from[1], tgt[1], k)];
+      // field notes: the leader is a hand-drawn curve; elsewhere a straight line in the kit's hand
+      const pts: P[] = st === "note"
+        ? [from, [lerp(from[0], end[0], 0.5) + (end[1] - from[1]) * 0.12, lerp(from[1], end[1], 0.5) - (end[0] - from[0]) * 0.12], end]
+        : [from, end];
+      inkStroke(ctx, st === "note" ? catmull(pts, 10) : pts, col, st === "chip" ? 1.4 : 2, ph.alpha);
       if (p.dot !== false && k >= 1) {
+        ctx.save();
+        ctx.globalAlpha *= ph.alpha;
         ctx.fillStyle = col;
         ctx.beginPath();
-        ctx.arc(tgt[0], tgt[1], 4.5, 0, TAU);
+        ctx.arc(tgt[0], tgt[1], st === "chip" ? 3.5 : 4.5, 0, TAU);
         ctx.fill();
+        if (st === "chip") {
+          ctx.globalAlpha *= 0.35;
+          ctx.beginPath();
+          ctx.arc(tgt[0], tgt[1], 9, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
       }
-      ctx.restore();
     } else if (p.target !== undefined) env.warn(el.id, `label target ${JSON.stringify(p.target)} not found`);
-    drawText(env, b, "center", clamp((ph.k - 0.35) / 0.65), p.textColor ?? "ink", ph.alpha);
+    const tk = clamp((ph.k - 0.35) / 0.65);
+    labelBacking(env, b.rect, st, ph.alpha, tk);
+    drawText(env, b, "center", tk, p.textColor ?? "ink", ph.alpha);
   },
 };
 
@@ -773,15 +841,38 @@ export const Guide: Component = {
     };
     let armL = arm("L", 0.1), armR = arm("R", 0.55);
     if (pose === "point" && target) {
-      // aim the pointing arm at the target (in the character's own frame)
-      const gx = (target[0] - x0) / U, gy = (target[1] - (y0 - lift * U)) / U;
-      const side = gx < 0 ? "L" : "R";
-      const ang = (Math.atan2(gx * (side === "L" ? -1 : 1), gy) * 180) / Math.PI; // 0 = hanging, 90 = sideways, 180 = up
+      // Two-bone IK: take the target into the body's own frame (undo the hop, the squash and the lean), then solve
+      // shoulder and elbow so the hand reaches toward it (or lands on it, when it is within reach).
+      let tx = (target[0] - x0) / U, ty = (target[1] - (y0 + (1 - spring(t, 0.6, 1.8)) * 70 - lift * U)) / U - 46;
+      tx /= sx;
+      ty /= sy;
+      const lr = (-lean * Math.PI) / 180;
+      [tx, ty] = [tx * Math.cos(lr) - ty * Math.sin(lr), tx * Math.sin(lr) + ty * Math.cos(lr)];
+      ty += 46;
+      const side = tx < 0 ? -1 : 1;
+      const vx = tx - side * 28, vy = ty - 4;
+      const d = Math.hypot(vx, vy) || 1;
+      const L1 = 20, L2 = 19;
+      const base = (Math.atan2(side * vx, vy) * 180) / Math.PI; // 0 = hanging, 90 = sideways, 180 = up
+      let a = base, e = 3;
+      if (d < L1 + L2 - 0.5) {
+        const cosE = (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2);
+        e = 180 - (Math.acos(clamp(cosE, -1, 1)) * 180) / Math.PI;
+        a = base - (Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1)) * 180) / Math.PI;
+      }
       const blend = clamp((absT - (keys.filter((k) => k.pose === "point").pop()?.at ?? 0)) / 0.45);
-      const aimed: [number, number] = [ang, 4];
-      if (side === "L") armL = [lerp(armL[0], aimed[0], blend), lerp(armL[1], aimed[1], blend)];
-      else armR = [lerp(armR[0], aimed[0], blend), lerp(armR[1], aimed[1], blend)];
+      const eb = blend * blend * (3 - 2 * blend);
+      // the pointing arm reaches; the other one relaxes to hang (the pose's own sideways arm would read as a second point)
+      const rest: [number, number] = [16 + 3 * wave(absT, 3.1), 20];
+      if (side < 0) {
+        armL = [lerp(armL[0], a, eb), lerp(armL[1], e, eb)];
+        armR = [lerp(armR[0], rest[0], eb), lerp(armR[1], -rest[1], eb)];
+      } else {
+        armR = [lerp(armR[0], a, eb), lerp(armR[1], e, eb)];
+        armL = [lerp(armL[0], rest[0], eb), lerp(armL[1], rest[1], eb)];
+      }
     }
+    const design = String(p.design ?? (env.tokens as any).art?.guide ?? "buddy");
     // gaze and face turn (2.5D): pupils lead, the face slides toward the look, the outline stays
     let lx = 0, ly = 0;
     if (lookP) {
@@ -817,19 +908,34 @@ export const Guide: Component = {
       const ar = (a * Math.PI) / 180, er = ((a + e) * Math.PI) / 180;
       const ex = sxp + side * Math.sin(ar) * 20, ey = syp + Math.cos(ar) * 20;
       const hx = ex + side * Math.sin(er) * 19, hy = ey + Math.cos(er) * 19;
+      if (design === "stick") {
+        line(A, [[side * 4, -8], [ex - sxp + side * 4, ey - syp - 8], [hx - sxp + side * 4, hy - syp - 8]], undefined, 4);
+        return;
+      }
       line(A, [[sxp, syp], [ex, ey], [hx, hy]], undefined, 9 + A.lw * 1.6);
       line(A, [[sxp, syp], [ex, ey], [hx, hy]], limb, 9);
       circle(A, hx, hy, 6.5, limb, { lw: A.lw * 0.7 });
     };
     // feet (the one carrying less weight lifts a touch)
-    ellipse(A, -13 - lean * 0.2, 44, 11, 6, mix(A.c(body), -0.25));
-    ellipse(A, 14 - lean * 0.2, 44 - Math.max(0, lean) * 0.4, 11, 6, mix(A.c(body), -0.25));
+    if (design !== "stick") {
+      ellipse(A, -13 - lean * 0.2, 44, 11, 6, mix(A.c(body), -0.25));
+      ellipse(A, 14 - lean * 0.2, 44 - Math.max(0, lean) * 0.4, 11, 6, mix(A.c(body), -0.25));
+    }
     // arms that hang go behind the body; raised arms come in front
     const front = (a: number) => a > 70;
     if (!front(armL[0])) drawArm(-1, armL);
     if (!front(armR[0])) drawArm(1, armR);
-    shape(A, [[0, -46], [22, -30], [36, -2], [34, 26], [18, 42], [-18, 42], [-34, 26], [-36, -2], [-22, -30]], body);
-    gloss(A, -16, -18, 7, 11, 0.4);
+    if (design === "block") {
+      // a block figure: a tapered body and a rounded square head with a visor (motion-graphics presenter)
+      shape(A, [[-24, -4], [24, -4], [18, 42], [-18, 42]], body, { tension: 0.12 });
+    } else if (design === "stick") {
+      // a chalk stick figure: a spine and hips; the head is drawn with the face
+      line(A, [[0, -14], [0, 30]], undefined, 4);
+      line(A, [[-13, 44], [0, 30], [13, 44]], undefined, 4);
+    } else {
+      shape(A, [[0, -46], [22, -30], [36, -2], [34, 26], [18, 42], [-18, 42], [-34, 26], [-36, -2], [-22, -30]], body);
+      gloss(A, -16, -18, 7, 11, 0.4);
+    }
     if (front(armL[0])) drawArm(-1, armL);
     if (front(armR[0])) drawArm(1, armR);
     // face (head tilt applied around the neck)
@@ -837,8 +943,16 @@ export const Guide: Component = {
     ctx.translate(0, 10);
     ctx.rotate((tilt * Math.PI) / 180);
     ctx.translate(0, -10);
-    face(A, lx, 2 + ly, 26, absT, { force: true, seed: 3, talk: p.talk === false ? 0 : talkAt(env, absT), mood: pose === "think" ? "wow" : undefined });
-    if (lid > 0.02) {
+    if (design === "block") {
+      shape(A, [[-22, -50], [22, -50], [22, -12], [-22, -12]], body, { tension: 0.25 });
+      // the visor turns toward what it looks at; it brightens while the narrator talks
+      const talking = p.talk === false ? 0 : talkAt(env, absT);
+      shape(A, [[-15 + lx, -36 + ly], [15 + lx, -36 + ly], [15 + lx, -26 + ly], [-15 + lx, -26 + ly]], talking > 0.4 ? "accent" : "black", { tension: 0.3, stroke: false });
+    } else if (design === "stick") {
+      circle(A, 0, -30, 16, null, { lw: 4 });
+      face(A, lx * 0.6, -30 + ly * 0.6, 14, absT, { force: true, seed: 3, talk: p.talk === false ? 0 : talkAt(env, absT), mood: pose === "think" ? "wow" : undefined });
+    } else face(A, lx, 2 + ly, 26, absT, { force: true, seed: 3, talk: p.talk === false ? 0 : talkAt(env, absT), mood: pose === "think" ? "wow" : undefined });
+    if (lid > 0.02 && design === "buddy") {
       // eyelids in body colour over the eyes (the face's own blink is replaced by this timed one)
       ctx.fillStyle = A.c(body);
       for (const dx of [-0.35, 0.35]) {
@@ -946,6 +1060,9 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
     const A = artFor(env, 1);
     const on = (part: string) => parts.has(part);
     const LA = num(((env.tokens as any).art ?? {}).landAlpha, 1); // how strongly the land, sea and sky are painted
+    // flat kits (cut paper, flat vector, riso) build the set from flat bands; ink and watercolour keep it sparse
+    const flatKit = ((env.tokens as any).art ?? {}).bands === true || ["flat", "papercut", "riso"].includes(A.style);
+    const sparse = flatKit || ["ink", "watercolor", "chalk", "blueprint", "clean"].includes(A.style);
     const time = p.time ?? "day";
     const night = time === "night", dusk = time === "dusk";
     const sunX = L.sunX >= 0 ? L.sunX : 640, sunY = 120;
@@ -956,25 +1073,41 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
     const skyA = clamp(k / 0.35);
     ctx.save();
     ctx.globalAlpha *= skyA * LA;
+    const artTok: any = (env.tokens as any).art ?? {};
     if (on("sky")) {
-    const g = ctx.createLinearGradient(0, 0, 0, L.H + 10);
-    if (night) { g.addColorStop(0, "#1C2442"); g.addColorStop(0.7, "#36406A"); g.addColorStop(1, "#5A6488"); }
-    else if (dusk) { g.addColorStop(0, "#4E5C94"); g.addColorStop(0.55, "#E39A7A"); g.addColorStop(1, "#F8D3A0"); }
-    else { g.addColorStop(0, mix(A.c("skyTop"), -0.12)); g.addColorStop(0.55, A.c("skyTop")); g.addColorStop(1, mix(A.c("sky"), 0.35)); }
-    ctx.fillStyle = g;
-    ctx.fillRect(-60, -60, 1400, L.H + 70);
+    // each kit paints its own sky for the time of day (tokens.art.skies: [zenith, middle, horizon])
+    const kitSky: string[] | undefined = artTok.skies?.[time] ?? (time === "golden" ? artTok.skies?.dusk : undefined);
+    if (kitSky && artTok.bands) {
+      // flat kits: the sky in three flat bands, like cut paper or printed plates
+      const h = L.H + 70;
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = kitSky[i];
+        ctx.fillRect(-60, -60 + (h * i) / 3 - (i ? 1 : 0), 1400, h / 3 + 2);
+      }
+    } else {
+      const g = ctx.createLinearGradient(0, 0, 0, L.H + 10);
+      if (kitSky) { g.addColorStop(0, kitSky[0]); g.addColorStop(0.55, kitSky[1]); g.addColorStop(1, kitSky[2]); }
+      else if (night) { g.addColorStop(0, "#1C2442"); g.addColorStop(0.7, "#36406A"); g.addColorStop(1, "#5A6488"); }
+      else if (dusk) { g.addColorStop(0, "#4E5C94"); g.addColorStop(0.55, "#E39A7A"); g.addColorStop(1, "#F8D3A0"); }
+      else { g.addColorStop(0, mix(A.c("skyTop"), -0.12)); g.addColorStop(0.55, A.c("skyTop")); g.addColorStop(1, mix(A.c("sky"), 0.35)); }
+      ctx.fillStyle = g;
+      ctx.fillRect(-60, -60, 1400, L.H + 70);
+    }
     // sun-side glow on the sky
-    const glow = ctx.createRadialGradient(sunX, sunY + 40, 10, sunX, sunY + 40, 620);
-    glow.addColorStop(0, night ? "rgba(200,210,255,0.25)" : "rgba(255,236,190,0.55)");
-    glow.addColorStop(0.45, night ? "rgba(200,210,255,0.06)" : "rgba(255,226,170,0.16)");
-    glow.addColorStop(1, "rgba(255,226,170,0)");
-    ctx.globalCompositeOperation = "screen";
-    ctx.fillStyle = glow;
-    ctx.fillRect(-60, -60, 1400, L.H + 70);
+    const glowK = num(artTok.skyGlow, 1);
+    if (glowK > 0) {
+      const glow = ctx.createRadialGradient(sunX, sunY + 40, 10, sunX, sunY + 40, 620);
+      glow.addColorStop(0, night ? `rgba(200,210,255,${0.25 * glowK})` : `rgba(255,236,190,${0.55 * glowK})`);
+      glow.addColorStop(0.45, night ? `rgba(200,210,255,${0.06 * glowK})` : `rgba(255,226,170,${0.16 * glowK})`);
+      glow.addColorStop(1, "rgba(255,226,170,0)");
+      ctx.globalCompositeOperation = "screen";
+      ctx.fillStyle = glow;
+      ctx.fillRect(-60, -60, 1400, L.H + 70);
+    }
     }
     // light shafts from the sun, turning very slowly
     ctx.globalCompositeOperation = "screen";
-    if (on("rays") && L.sunX >= 0 && !night && p.rays !== false) {
+    if (on("rays") && L.sunX >= 0 && !night && p.rays !== false && artTok.rays !== false) {
       for (let i = 0; i < 9; i++) {
         const a = (i / 9) * Math.PI * 2 + t * 0.025 + 0.2;
         const spread = 0.06 + 0.03 * Math.sin(i * 2.7);
@@ -998,7 +1131,7 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
       ctx.globalAlpha *= farK * LA;
       const haze = mix(A.c("sky"), 0.25);
       ctx.save();
-      if (p.farClouds === false) ctx.globalAlpha = 0;
+      if (p.farClouds === false || flatKit) ctx.globalAlpha = 0;
       ctx.filter = "blur(6px)";
       ctx.globalAlpha *= 0.55;
       ctx.fillStyle = "#FFFFFF";
@@ -1014,12 +1147,14 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
       const near = ridge(L.H - 28, 46, 7.4, 30);
       poly(A, [...near, [1320, L.H + 20], [-40, L.H + 20]], mix(A.c(p.ground === "snow" ? "snow" : "leafDark"), 0.45), { stroke: false, alpha: 0.6 });
       // horizon haze
-      const hz = ctx.createLinearGradient(0, L.H - 120, 0, L.H + 20);
-      hz.addColorStop(0, "rgba(255,255,255,0)");
-      hz.addColorStop(1, haze);
-      ctx.globalAlpha *= 0.55;
-      ctx.fillStyle = hz;
-      ctx.fillRect(-60, L.H - 120, 1400, 140);
+      if (!flatKit) {
+        const hz = ctx.createLinearGradient(0, L.H - 120, 0, L.H + 20);
+        hz.addColorStop(0, "rgba(255,255,255,0)");
+        hz.addColorStop(1, haze);
+        ctx.globalAlpha *= 0.55;
+        ctx.fillStyle = hz;
+        ctx.fillRect(-60, L.H - 120, 1400, 140);
+      }
       ctx.restore();
     }
 
@@ -1048,26 +1183,33 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
     ctx.translate(0, (1 - ease.out(gk)) * 40);
     const groundPts: P[] = [];
     for (let x = -60; x <= 1340; x += 40) groundPts.push([x, L.H + Math.sin(x * 0.012 + 1) * 8]);
-    const gg = ctx.createLinearGradient(0, L.H, 0, 730);
-    gg.addColorStop(0, mix(gcol, 0.22));
-    gg.addColorStop(0.35, gcol);
-    gg.addColorStop(1, mix(gcol, -0.2));
-    ctx.beginPath();
-    ctx.moveTo(groundPts[0][0], groundPts[0][1]);
-    for (const q of groundPts.slice(1)) ctx.lineTo(q[0], q[1]);
-    ctx.lineTo(1340, 760);
-    ctx.lineTo(-60, 760);
-    ctx.closePath();
-    ctx.fillStyle = gg;
-    ctx.fill();
-    // warm light falling across the ground from the sun's side
-    const sl = ctx.createLinearGradient(sunX, L.H, sunX > 640 ? sunX - 1100 : sunX + 1100, L.H + 200);
-    sl.addColorStop(0, "rgba(255,236,180,0.22)");
-    sl.addColorStop(1, "rgba(255,236,180,0)");
-    ctx.fillStyle = sl;
-    ctx.fill();
-    line(A, groundPts, undefined, 3);
-    if (ground === "grass") {
+    if (flatKit) {
+      // two flat bands of ground, the nearer one a shade darker
+      poly(A, [...groundPts, [1340, 760], [-60, 760]], gcol, { stroke: false });
+      const nearPts: P[] = groundPts.map(([x, y]) => [x, y + 120 + Math.sin(x * 0.009 + 2) * 14] as P);
+      poly(A, [...nearPts, [1340, 760], [-60, 760]], mix(gcol, -0.12), { stroke: false });
+    } else {
+      const gg = ctx.createLinearGradient(0, L.H, 0, 730);
+      gg.addColorStop(0, mix(gcol, 0.22));
+      gg.addColorStop(0.35, gcol);
+      gg.addColorStop(1, mix(gcol, -0.2));
+      ctx.beginPath();
+      ctx.moveTo(groundPts[0][0], groundPts[0][1]);
+      for (const q of groundPts.slice(1)) ctx.lineTo(q[0], q[1]);
+      ctx.lineTo(1340, 760);
+      ctx.lineTo(-60, 760);
+      ctx.closePath();
+      ctx.fillStyle = gg;
+      ctx.fill();
+      // warm light falling across the ground from the sun's side
+      const sl = ctx.createLinearGradient(sunX, L.H, sunX > 640 ? sunX - 1100 : sunX + 1100, L.H + 200);
+      sl.addColorStop(0, "rgba(255,236,180,0.22)");
+      sl.addColorStop(1, "rgba(255,236,180,0)");
+      ctx.fillStyle = sl;
+      ctx.fill();
+      line(A, groundPts, undefined, 3);
+    }
+    if (ground === "grass" && !sparse) {
       const rr = rng(hash(el.id + "blades"));
       ctx.strokeStyle = mix(gcol, -0.28);
       ctx.lineWidth = 2;
@@ -1130,16 +1272,32 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
       for (let x = x0; x <= x1; x += 10) pts.push([x, L.H + 2 + Math.sin(x * 0.05 + t * 1.6) * 3]);
       const lap = Math.sin(t * 1.3) * 6;
       const outline: P[] = left ? [...pts, [shoreTop + lap, L.H + 12], [shoreBot + lap * 0.5, 760], [-60, 760]] : [[shoreTop + lap, L.H + 12], ...pts, [1340, 760], [shoreBot + lap * 0.5, 760]];
-      const sg = ctx.createLinearGradient(0, L.H, 0, 730);
-      sg.addColorStop(0, mix(A.c("water"), 0.3));
-      sg.addColorStop(0.25, A.c("water"));
-      sg.addColorStop(1, A.c("waterDeep"));
-      ctx.beginPath();
-      ctx.moveTo(outline[0][0], outline[0][1]);
-      for (const q of outline.slice(1)) ctx.lineTo(q[0], q[1]);
-      ctx.closePath();
-      ctx.fillStyle = sg;
-      ctx.fill();
+      if (flatKit) {
+        // the sea in flat bands: light near the horizon, deep toward the viewer
+        poly(A, outline, "waterLight", { stroke: false });
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(outline[0][0], outline[0][1]);
+        for (const q of outline.slice(1)) ctx.lineTo(q[0], q[1]);
+        ctx.closePath();
+        ctx.clip();
+        ctx.fillStyle = A.c("water");
+        ctx.fillRect(-60, L.H + 40, 1400, 400);
+        ctx.fillStyle = A.c("waterDeep");
+        ctx.fillRect(-60, L.H + 150, 1400, 400);
+        ctx.restore();
+      } else {
+        const sg = ctx.createLinearGradient(0, L.H, 0, 730);
+        sg.addColorStop(0, mix(A.c("water"), 0.3));
+        sg.addColorStop(0.25, A.c("water"));
+        sg.addColorStop(1, A.c("waterDeep"));
+        ctx.beginPath();
+        ctx.moveTo(outline[0][0], outline[0][1]);
+        for (const q of outline.slice(1)) ctx.lineTo(q[0], q[1]);
+        ctx.closePath();
+        ctx.fillStyle = sg;
+        ctx.fill();
+      }
       line(A, left ? [...pts, [shoreTop + lap, L.H + 12]] : [[shoreTop + lap, L.H + 12], ...pts], undefined, 3);
       line(A, [[shoreTop + lap, L.H + 12], [shoreBot + lap * 0.5, 760]], "white", 5, 0.75);
       // rolling wave crests
@@ -1149,7 +1307,7 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
         line(A, [[wx - 16, wy], [wx - 5, wy - 4], [wx + 6, wy], [wx + 18, wy - 4]], "waterLight", 3, 0.85);
       }
       // sun glints: bright dashes that twinkle on the side nearer the sun
-      if (!night) {
+      if (!night && !sparse) {
         const gr = rng(hash(el.id + "glint"));
         ctx.globalCompositeOperation = "screen";
         for (let i = 0; i < 26; i++) {
@@ -1175,11 +1333,11 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
     }
 
     // ── foreground grass framing the bottom edge, and pollen drifting in the light ──
-    if (on("fg") && p.foreground !== false && ground === "grass") {
+    if (on("fg") && p.foreground !== false && ground === "grass" && (!sparse || A.style === "papercut")) {
       const fk = clamp((k - 0.7) / 0.3);
       ctx.save();
       ctx.globalAlpha *= fk;
-      ctx.filter = "blur(2.5px)"; // foreground, out of focus
+      if (!flatKit) ctx.filter = "blur(2.5px)"; // foreground, out of focus
       for (const [cx, dir] of [[40, 1], [1240, -1]] as const) {
         const fr = rng(hash(el.id + "fg" + cx));
         for (let i = 0; i < 16; i++) {
@@ -1197,7 +1355,7 @@ function landscapeLayers(env0: Env, p: any, el: SceneElement, gc: any, t: number
       }
       ctx.restore();
     }
-    if (on("pollen") && !night && p.pollen !== false) {
+    if (on("pollen") && !night && p.pollen !== false && !sparse) {
       const pr = rng(hash(el.id + "pollen"));
       ctx.save();
       ctx.globalCompositeOperation = "screen";

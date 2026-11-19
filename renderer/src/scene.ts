@@ -9,6 +9,17 @@ import { Epithelium } from "./components/cellbio";
 import { clamp, ease, hash, lerp, num, rng } from "./util";
 import { EASE_IN, inertia, smoothNoise, spring, SPRINGS } from "./motion";
 import { textureTile } from "./art/texture";
+import { ensureShots, isMoving, MOVE_DUR, moveEase, shakeAt } from "./camera";
+import { applyTransitions, setPaperPainter, Transition } from "./components/transition";
+import { Cell, Synapse } from "./components/sets/bio";
+import { Molecule, Reaction } from "./components/sets/chem";
+import { Orbits } from "./components/sets/space";
+import { Circuit, Machine } from "./components/sets/mech";
+import { Timeline, WorldMap } from "./components/sets/history";
+import { Bars, Stamp, TokenGrid } from "./components/sets/data";
+import { Contraption } from "./components/sets/contraption";
+import { restoreActiveKit, setActiveKit } from "./ink";
+import { boilPose } from "./art/paint";
 
 export interface RenderOptions {
   tokens: Tokens;
@@ -63,11 +74,16 @@ export const COMPONENTS: Record<string, Component> = {
   Underline, CircleHighlight, MarkerHighlight, Arrow, Box, Flow,
   AxesPlot, NumberLine, BarChart,
   SideBySide, ProgressBar, FrozenFrame,
-  Prop, Particles, Tube, Journey, Label, Guide, Landscape, Nephron, Body, Epithelium,
+  Prop, Particles, Tube, Journey, Label, Guide, Landscape, Nephron, Body, Epithelium, Transition,
+  Synapse, Cell, Molecule, Reaction, Orbits, Machine, Circuit, Timeline, WorldMap, TokenGrid, Bars, Stamp, Contraption,
 };
 
+setPaperPainter((ctx, env) => drawPaper(ctx, env.tokens, env.makeCanvas));
+
 /** Full-frame backdrops: exempt from the out-of-frame lint. */
-export const BACKDROPS = new Set(["Landscape"]);
+export const BACKDROPS = new Set(["Landscape", "Timeline"]);
+/** Sets that may be larger than the frame: the camera may travel over all of them. */
+export const WORLD_SETS = new Set(["Timeline", "WorldMap"]);
 
 interface Xf { dx: number; dy: number; scale: number; rotate: number; opacity: number }
 
@@ -221,6 +237,88 @@ function paintSurface(ctx: Ctx, tokens: Tokens, makeCanvas: RenderOptions["makeC
       }
       ctx.globalAlpha = 1;
     }
+  } else if (kind === "rice") {
+    // rice paper: long fibres, a few warm mottles where the sheet took more moisture
+    for (let i = 0; i < 9; i++) {
+      const x = r() * W, y = r() * H, rad = 180 + r() * 320;
+      const g = ctx.createRadialGradient(x, y, rad * 0.1, x, y, rad);
+      g.addColorStop(0, `rgba(170,140,100,${0.035 + r() * 0.03})`);
+      g.addColorStop(1, "rgba(170,140,100,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    const pat = ctx.createPattern(textureTile({ makeCanvas, tokens } as any, "fibre"), "repeat");
+    if (pat) {
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+  } else if (kind === "dots") {
+    // a quiet dot grid, the drafting surface of a motion designer
+    ctx.fillStyle = `rgba(${pp.mark ?? "30,40,60"},0.11)`;
+    for (let y = 24; y < H; y += 32) for (let x = 24; x < W; x += 32) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (kind === "shadowbox") {
+    // the back of a paper theatre: a lamp from the upper left, falling off to the corners, and the box's own walls
+    const lamp = ctx.createRadialGradient(W * 0.32, H * 0.18, 40, W * 0.45, H * 0.4, W * 0.85);
+    lamp.addColorStop(0, "rgba(255,236,200,0.22)");
+    lamp.addColorStop(0.55, "rgba(255,236,200,0.06)");
+    lamp.addColorStop(1, "rgba(0,0,0,0.25)");
+    ctx.fillStyle = lamp;
+    ctx.fillRect(0, 0, W, H);
+    const pat = ctx.createPattern(textureTile({ makeCanvas, tokens } as any, "fibre"), "repeat");
+    if (pat) {
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+    // the box's walls: each edge in a little shadow
+    for (const [x0, y0, x1, y1] of [[0, 0, 0, 46], [0, H, 0, H - 46], [0, 0, 46, 0], [W, 0, W - 46, 0]] as const) {
+      const g = ctx.createLinearGradient(x0, y0, x1, y1);
+      g.addColorStop(0, "rgba(0,0,0,0.3)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
+  } else if (kind === "clinical") {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, tokens.colors.paper);
+    g.addColorStop(1, tokens.colors.paperShade);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "rgba(40,60,90,0.035)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 40) { ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+  } else if (kind === "riso") {
+    // uncoated stock: speckle, and the faint bands the drum leaves across the sheet
+    const pat = ctx.createPattern(textureTile({ makeCanvas, tokens } as any, "riso"), "repeat");
+    if (pat) {
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+    for (let i = 0; i < 6; i++) {
+      const y = r() * H, h = 30 + r() * 90;
+      ctx.fillStyle = `rgba(60,40,30,${0.012 + r() * 0.018})`;
+      ctx.fillRect(0, y, W, h);
+    }
+  } else if (kind === "wash") {
+    // a picture-book page: a few big soft washes of warm colour
+    for (let i = 0; i < 6; i++) {
+      const x = r() * W, y = r() * H, rad = 220 + r() * 320;
+      const g = ctx.createRadialGradient(x, y, rad * 0.15, x, y, rad);
+      g.addColorStop(0, `rgba(${pp.wash ?? "255,214,160"},${0.07 + r() * 0.05})`);
+      g.addColorStop(1, `rgba(${pp.wash ?? "255,214,160"},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
   } else if (kind === "fibre" || kind === "coldpress" || kind === "halftone") {
     const tile = textureTile({ makeCanvas, tokens } as any, kind === "fibre" ? "fibre" : kind === "coldpress" ? "granulation" : "halftone");
     const pat = ctx.createPattern(tile, "repeat");
@@ -279,26 +377,52 @@ function paintPaper(ctx: Ctx, tokens: Tokens, makeCanvas: RenderOptions["makeCan
 export function cameraAt(spec: SceneSpec, t: number, tokens: Tokens): CameraKey & { focus: number; dof: number } {
   const W = tokens.canvas.width;
   const H = tokens.canvas.height;
-  const keys = (spec.camera ?? []).filter((k) => typeof k.t === "number").sort((a, b) => a.t - b.t);
+  const keys = (spec.camera ?? []).filter((k) => typeof k.t === "number" && typeof k.x === "number").sort((a, b) => a.t - b.t);
   let x = W / 2, y = H / 2, zoom = 1, focus = 0, dof = 0;
+  let sx = 0, sy = 0;
   for (const k of keys) {
     if (t < k.t) break;
-    const e = inertia(clamp((t - k.t) / Math.max(0.2, num(k.dur, 1.6))));
+    const move = (k as any).move as string | undefined;
+    const dur = move ? Math.max(0, num(k.dur, MOVE_DUR[move as keyof typeof MOVE_DUR] ?? 1.6)) : Math.max(0.2, num(k.dur, 1.6));
+    // keys written as raw x/y/zoom keep the original inertia curve; named moves settle (or whip, or dive)
+    const e = dur <= 0.001 ? 1 : (move ? moveEase(move) : inertia)(clamp((t - k.t) / dur));
     x = lerp(x, num(k.x, x), e);
     y = lerp(y, num(k.y, y), e);
-    zoom = lerp(zoom, num(k.zoom, zoom), e);
+    // zoom in log space: the same apparent speed at every scale
+    const z1 = Math.max(0.2, num(k.zoom, zoom));
+    zoom = Math.exp(lerp(Math.log(Math.max(0.2, zoom)), Math.log(z1), e));
     focus = lerp(focus, num(k.focus, focus), e);
     dof = lerp(dof, num(k.dof, dof), e);
+    const amp = num((k as any).shake, 0);
+    if (amp > 0) {
+      const [dx, dy] = shakeAt(t, k.t, amp);
+      sx += dx;
+      sy += dy;
+    }
   }
   const life = (tokens as any).camera ?? {};
   if ((spec as any).cameraLife !== false) {
+    // legacy kits: a slow push over the scene and an operator's drift. Rebuilt kits leave both at 0 so rests are
+    // still, and may ask for a small handheld float instead.
     const push = num(life.push, 0.03);
-    zoom *= 1 + push * clamp(t / Math.max(1, spec.duration));
-    const drift = num(life.drift, 4);
-    x += smoothNoise(t * 0.22, 11) * drift;
-    y += smoothNoise(t * 0.18, 23) * drift * 0.6;
+    if (push) zoom *= 1 + push * clamp(t / Math.max(1, spec.duration));
+    const drift = num(life.drift, 4) + num(life.handheld, 0);
+    if (drift) {
+      x += smoothNoise(t * 0.22, 11) * drift;
+      y += smoothNoise(t * 0.18, 23) * drift * 0.6;
+    }
   }
-  return { t, x, y, zoom, focus, dof };
+  return { t, x: x + sx / zoom, y: y + sy / zoom, zoom, focus, dof };
+}
+
+/** How fast the frame moves at t, in output px per frame (for motion blur). */
+export function cameraSpeed(spec: SceneSpec, t: number, tokens: Tokens, fps: number): number {
+  const dt = 1 / fps;
+  const a = cameraAt(spec, Math.max(0, t - dt / 2), tokens), b = cameraAt(spec, t + dt / 2, tokens);
+  const W = tokens.canvas.width, H = tokens.canvas.height;
+  const pan = Math.hypot((b.x - a.x) * b.zoom, (b.y - a.y) * b.zoom);
+  const scale = Math.abs(Math.log(b.zoom / a.zoom)) * Math.hypot(W, H) * 0.5;
+  return pan + scale;
 }
 
 /** Default depth plane per component type: backdrops sit back, characters forward. */
@@ -339,6 +463,7 @@ export function makeEnv(ctx: Ctx, spec: SceneSpec, o: RenderOptions): Env {
     makeCanvas: o.makeCanvas,
     depth: o.depth ?? 0,
     warn: (id, msg) => o.onWarn?.(id, msg),
+    componentOf: (type: string) => COMPONENTS[type],
     pointOf: (ref) => {
       if (Array.isArray(ref) && ref.length >= 2 && typeof ref[0] === "number") return [ref[0], num(ref[1], 0)];
       if (typeof ref !== "string" || !ref) return null;
@@ -393,6 +518,20 @@ export function elementDur(env: Env, el: SceneElement) {
 export function drawScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions) {
   const env = makeEnv(ctx, spec, o);
   const tokens = o.tokens;
+  applyTransitions(spec, tokens);
+  ensureShots(spec, tokens, () => env);
+  const prevKit = setActiveKit(tokens, t);
+  (env as any).t = t;
+  try {
+    drawSceneBody(ctx, env, spec, t, o);
+  } finally {
+    restoreActiveKit(prevKit);
+  }
+}
+
+function drawSceneBody(ctx: Ctx, env: Env, spec: SceneSpec, tReal: number, o: RenderOptions) {
+  let t = tReal;
+  const tokens = o.tokens;
   const fade = tokens.motion.fadeOut;
   if (env.depth === 0 || !spec.elements.some((e) => e.type === "FrozenFrame")) drawPaper(ctx, tokens, o.makeCanvas);
   const cam = env.depth === 0 ? cameraAt(spec, t, tokens) : { ...cameraAt({ ...spec, cameraLife: false } as any, t, tokens) };
@@ -401,7 +540,10 @@ export function drawScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions
   const sp = kitSpring(tokens);
   const hold = num((tokens.motion as any).hold, 0);
   if (hold > 0) t = Math.floor(t * hold + 1e-6) / hold; // animated on twos/threes; the camera above keeps every frame
-  for (const el of spec.elements) {
+  (env as any).cam = env.depth === 0 ? cam : null; // sets use it to keep their own labels out of the frame edge
+  // covers (transitions) go over everything else, whatever order they were written in
+  const ordered = [...spec.elements.filter((e) => e.type !== "Transition"), ...spec.elements.filter((e) => e.type === "Transition")];
+  for (const el of ordered) {
     const comp = COMPONENTS[el.type];
     if (!comp) {
       env.warn(el.id, `unknown component type '${el.type}'`);
@@ -416,7 +558,7 @@ export function drawScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions
     const exitK = t > until ? clamp((t - until) / fade) : 0;
     const alpha = 1 - exitK;
     const depth = num(el.props?.depth, DEFAULT_DEPTH[el.type] ?? 0);
-    const blur = env.depth === 0 && !el.fixed ? Math.min(14, Math.abs(depth - cam.focus) * cam.dof) : 0;
+    const blur = env.depth === 0 && !el.fixed && el.type !== "Transition" ? Math.min(14, Math.abs(depth - cam.focus) * cam.dof) : 0;
     let target: Ctx = ctx;
     let layer: { c: any; g: Ctx } | null = null;
     if (blur >= 1.2) {
@@ -428,7 +570,7 @@ export function drawScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions
     const savedCtx = env.ctx;
     env.ctx = target;
     target.save();
-    if (!el.fixed && el.type !== "FrozenFrame" && el.type !== "RecapCard" && el.type !== "ProgressBar") {
+    if (!el.fixed && el.type !== "FrozenFrame" && el.type !== "RecapCard" && el.type !== "ProgressBar" && el.type !== "Transition") {
       // parallax: near planes move and scale more than far ones
       const par = 1 + depth * 0.35;
       const zf = 1 + (cam.zoom - 1) * (1 + depth * 0.6);
@@ -470,6 +612,19 @@ export function drawScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.filter = `blur(${(blur * Math.abs(m.a)).toFixed(2)}px)`;
       ctx.drawImage(layer.c, 0, 0);
+      ctx.restore();
+    }
+  }
+  // stop-motion kits: each new exposure is a touch brighter or darker, as under a real rostrum lamp
+  const flicker = num((tokens.motion as any).flicker, 0);
+  if (flicker > 0 && env.depth === 0) {
+    const pose = Math.floor(tReal * Math.max(1, hold || 12) + 1e-6);
+    const v = (rng(hash("flicker" + pose))() * 2 - 1) * flicker;
+    if (Math.abs(v) > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = Math.abs(v);
+      ctx.fillStyle = v > 0 ? "#FFF8EC" : "#1A1206";
+      ctx.fillRect(-W, -H, W * 3, H * 3);
       ctx.restore();
     }
   }
@@ -530,25 +685,56 @@ function finishFrame(ctx: Ctx, o: RenderOptions, t: number, ow: number, oh: numb
 
 const finishPool = new Map<string, any>();
 
+const blurPool = new Map<string, any>();
+
 /** Render at output resolution: scales logical canvas to width/height, then applies the film finish. */
-export function renderScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions & { finish?: boolean }) {
+export function renderScene(ctx: Ctx, spec: SceneSpec, t: number, o: RenderOptions & { finish?: boolean; fps?: number; motionBlur?: boolean }) {
   const W = o.tokens.canvas.width;
   const H = o.tokens.canvas.height;
   const ow = o.width ?? W;
   const oh = o.height ?? H;
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(ow / W, oh / H);
-  drawScene(ctx, spec, t, o);
-  ctx.restore();
+  const fps = o.fps ?? 24;
+  // Fast camera moves are exposed through an open shutter (180°): several sub-frames averaged, so a whip pan smears
+  // instead of strobing. Only frames that move fast pay for it.
+  const speed = o.motionBlur === false || (o.depth ?? 0) ? 0 : cameraSpeed(spec, t, o.tokens, fps) * (ow / W);
+  if (speed > 28) {
+    const n = speed > 110 ? 6 : speed > 55 ? 4 : 3;
+    const shutter = 0.5 / fps;
+    const key = `${ow}x${oh}`;
+    let scratch = blurPool.get(key);
+    if (!scratch) {
+      scratch = o.makeCanvas(ow, oh);
+      blurPool.set(key, scratch);
+    }
+    const g = scratch.getContext("2d") as Ctx;
+    for (let i = 0; i < n; i++) {
+      const tt = Math.max(0, t + ((i + 0.5) / n - 0.5) * shutter);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.scale(ow / W, oh / H);
+      drawScene(g, spec, tt, o);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1 / (i + 1); // a running mean of the sub-frames
+      ctx.drawImage(scratch, 0, 0);
+      ctx.restore();
+      // the canvas defers drawing until pixels are read: force this one before the scratch is drawn into again
+      ctx.getImageData(0, 0, 1, 1);
+    }
+  } else {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(ow / W, oh / H);
+    drawScene(ctx, spec, t, o);
+    ctx.restore();
+  }
   // Video frames are finished by the encoder (halation, vignette, grain, grade: backend media._finish), which is
   // ~30× faster than reading the canvas back here. Previews may opt in.
   if (o.finish === true && !(o.depth ?? 0)) finishFrame(ctx, o, t, ow, oh);
 }
 
-export const TEXTY = new Set(["Text", "EquationWrite", "BulletReveal", "Callout", "Heading", "TitleCard", "Table", "SideBySide", "Counter", "Box", "Flow", "AxesPlot", "NumberLine", "BarChart", "Label"]);
+export const TEXTY = new Set(["Text", "EquationWrite", "BulletReveal", "Callout", "Heading", "TitleCard", "Table", "SideBySide", "Counter", "Box", "Flow", "AxesPlot", "NumberLine", "BarChart", "Label", "Stamp"]);
 // illustrations text must not sit on (their inner part, so labels may touch the edges)
-export const PICTURES = new Set(["Prop", "Guide", "Epithelium", "Nephron", "Body"]); // Tube: by its stroke (parts)
+export const PICTURES = new Set(["Prop", "Guide", "Epithelium", "Nephron", "Body", "Molecule", "Reaction", "Orbits", "Circuit", "Machine", "TokenGrid"]); // Tube: by its stroke (parts)
 const CAMERA_MUST_SHOW = new Set(["Arrow"]);
 
 export interface PictureBox {
@@ -640,6 +826,8 @@ export function lintScene(ctx: Ctx, spec: SceneSpec, o: RenderOptions): LintIssu
     }
   };
   const env = makeEnv(ctx, spec, { ...o, onWarn: push });
+  applyTransitions(spec, o.tokens);
+  ensureShots(spec, o.tokens, () => env);
   const W = o.tokens.canvas.width;
   const H = o.tokens.canvas.height;
   const ids = new Set<string>();
@@ -752,6 +940,23 @@ export function lintScene(ctx: Ctx, spec: SceneSpec, o: RenderOptions): LintIssu
       }
     }
   });
+  // direction notes (advisory: the fixer leaves them alone, the style lab and the logs show them)
+  if (shots.length) {
+    let moving = 0;
+    const N = 60;
+    for (let i = 0; i < N; i++) if (isMoving(shots, (spec.duration * (i + 0.5)) / N)) moving++;
+    if (moving / N > 0.7) push("scene", `direction: the camera moves ${Math.round((moving / N) * 100)}% of the time; leave still rests so the moves land`);
+    const starts = shots.map((k) => k.t).filter((t, i, a) => i === 0 || t - a[i - 1] > 0.3);
+    if (starts.length >= 4) {
+      const gaps = starts.slice(1).map((t, i) => t - starts[i]);
+      const mean = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+      const sd = Math.sqrt(gaps.reduce((s, g) => s + (g - mean) ** 2, 0) / gaps.length);
+      if (mean > 0 && sd / mean < 0.15) push("scene", "direction: shots change at an even beat (a metronome); vary the beat lengths");
+    }
+  }
+  for (const el of spec.elements) {
+    if (el.type === "Box" && !el.props?.label && el.props?.fill) push(el.id, "direction: an empty box stands in for a real thing; use a set or a library picture");
+  }
   // draw a few sample frames to surface draw-time warnings (bad fn, missing targets)
   for (const t of [0.5, spec.duration * 0.33, spec.duration * 0.66, spec.duration - 0.05]) {
     drawScene(ctx, spec, Math.max(0, t), { ...o, onWarn: push });

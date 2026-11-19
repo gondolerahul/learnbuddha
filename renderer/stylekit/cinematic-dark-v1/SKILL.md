@@ -1,6 +1,11 @@
-## Dark cinematic kit: space, the very large and very small, documentary topics
-Like a documentary title sequence: a dark set, glowing subjects, big slow camera moves.
-- Subjects glow against the dark (planets, atoms, neurons, lightning, rockets, the sun); use Particles for light,
-  energy and motion; keep the frame mostly dark with one bright subject.
-- Camera: slow pushes and reveals (pull back from a detail to the whole); a dramatic fast push at most once.
-- Words sparingly, white on dark, set in empty space.
+## Night glow: the bible
+A documentary in the dark: glowing line work, the very large and the very small, wonder held in check.
+- **Look.** A near-black set with faint stars; subjects drawn in luminous lines on dark bodies, lit from the side
+  by a cool rim; one warm yellow (`accent`) glow for what matters. Mostly dark frame, one bright subject.
+- **Staging.** Orbits for planets, moons, days and years (`counters` to race them); Synapse or Cell for the very small;
+  Molecule and Reaction for matter; a WorldMap of the night side for Earth-scale stories.
+- **Camera.** Slow pushes and reveals: start close on a detail and pull back to the vast whole, or travel along a
+  path. One `through` dive at most (into a cell, into a planet). The camera floats slightly, like a documentary operator.
+- **Motion.** Slow, weighty, continuous. Light moves (a pulse along an axon, a planet's terminator).
+- **Words.** Few. Labels are small uppercase mono chips with thin leader lines; headings a quiet grotesk.
+- **Transition.** A bloom of light from the subject, a dip into the dark (kind glow).

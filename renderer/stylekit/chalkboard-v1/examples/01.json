@@ -1,0 +1,173 @@
+{
+ "title": "Solving an equation",
+ "kit": "chalkboard-v1",
+ "sentences": [
+  "Let's solve two x plus three equals eleven.",
+  "Take three from both sides, and the balance stays level.",
+  "Now two x equals eight.",
+  "Halve both sides: x equals four."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the equation is written",
+   "lead": "e1",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "the step is written",
+   "lead": "e2",
+   "shot": {
+    "shot": "medium",
+    "on": "e2",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "the answer, circled",
+   "lead": "e4",
+   "shot": {
+    "shot": "close",
+    "on": "e4",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    5
+   ],
+   "change": "the whole working",
+   "lead": "ring",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Solve for x"
+   },
+   "fixed": true
+  },
+  {
+   "id": "e1",
+   "type": "EquationWrite",
+   "cue": [
+    0,
+    2
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "2x + 3 = 11",
+    "x": 640,
+    "y": 190,
+    "size": "xl",
+    "align": "center"
+   }
+  },
+  {
+   "id": "e2",
+   "type": "EquationWrite",
+   "cue": [
+    1,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "2x + 3 − 3 = 11 − 3",
+    "x": 640,
+    "y": 300,
+    "size": "lg",
+    "align": "center"
+   }
+  },
+  {
+   "id": "e3",
+   "type": "EquationWrite",
+   "cue": [
+    2,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "2x = 8",
+    "x": 640,
+    "y": 400,
+    "size": "xl",
+    "align": "center"
+   }
+  },
+  {
+   "id": "e4",
+   "type": "EquationWrite",
+   "cue": [
+    3,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "x = 4",
+    "x": 640,
+    "y": 510,
+    "size": "xl",
+    "align": "center"
+   }
+  },
+  {
+   "id": "ring",
+   "type": "CircleHighlight",
+   "cue": [
+    3,
+    5
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "target": "e4"
+   }
+  }
+ ]
+}

@@ -32,6 +32,10 @@ export interface CameraKey {
   /** Depth plane in focus (-1 far … 0 mid … 1 near) and depth-of-field strength (blur px per unit of depth). */
   focus?: number;
   dof?: number;
+  /** How the move is made (camera.ts): cut | push | pull | pan | follow | whip | through | hold. */
+  move?: string;
+  /** A decaying shake on the cue (px). */
+  shake?: number;
 }
 
 export interface SceneElement {
@@ -76,6 +80,10 @@ export interface Env {
   warn: (elementId: string, message: string) => void;
   /** Recursion depth guard for FrozenFrame. */
   depth: number;
+  /** The component that draws a type (lets the camera ask a set for its labels). */
+  componentOf?: (type: string) => Component | undefined;
+  /** Scene time of the frame being drawn (set by drawScene): drives line boil. */
+  t?: number;
 }
 
 export interface Phase {
@@ -99,4 +107,6 @@ export interface Component {
   anchors?: (env: Env, p: any, el: SceneElement) => Record<string, [number, number]>;
   /** Pictures drawn inside a backdrop (a landscape's sun and trees), which text must not cover. */
   parts?: (env: Env, p: any, el: SceneElement) => { name: string; rect: Rect }[];
+  /** Built-in labels of a set on screen between t0 and t1 (the camera frames them with their subject). */
+  labelRects?: (env: Env, p: any, el: SceneElement, t0: number, t1: number) => Rect[];
 }

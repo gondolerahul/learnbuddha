@@ -116,13 +116,32 @@ def test_camera_crops_and_pinned_headings_are_caught_and_repaired():
     assert media.lint_spec(out["spec"]) == [] and out["changes"]  # reframed or moved, the label now shows in the shot
 
 
-def test_scene_writer_asks_for_rich_scenes():
+def test_scene_writer_is_directed_not_given_quotas():
     from app.brain.base import SceneContext
 
-    ctx = SceneContext("C", "L", "English", "Les", "obj", "Scene", "sobj", ["k"], "viz", 50, 0, 1, kit="watercolor-v1")
-    system, user = prompts.scene_system(kit_id="watercolor-v1"), prompts.scene_user(ctx)
-    assert system.rstrip().endswith(prompts.RICHNESS.rstrip())  # the checklist comes last, where fast models weigh it most
-    assert "at least 20 elements" in user and "at least 4 different prop kinds" in user and "6 or more camera shots" in user
+    ctx = SceneContext("C", "L", "English", "Les", "obj", "Scene", "sobj", ["k"], "viz", 50, 0, 1, kit="watercolor-v1",
+                       set_name="Cell", central_image="a cell at work", design_read="calm and curious")
+    system, user = prompts.scene_system(kit_id="watercolor-v1", sets=prompts.scene_sets(ctx)), prompts.scene_user(ctx)
+    # the kit's own bible and the shared direction brief, not another kit's look and not element quotas
+    assert "Field notes: the bible" in system and "Zen ink: the bible" not in system and "# Direct it like a film" in system
+    assert "every ~2.5 s" not in system and "at least 20 elements" not in user
+    # only the planned set (and the always-available devices) are described
+    assert "- Cell:" in system and "- Synapse:" not in system and "- TokenGrid:" in system
+    assert "4-5 beats" in user and "Built on: Cell" in user and "a cell at work" in user
+    assert prompts.scene_schema()["required"] == ["sentences", "beats", "elements"]
+    assert "design_read" in prompts.PLAN_SCHEMA["required"]
+
+
+def test_beats_become_named_shots_and_nested_cues_resolve():
+    timings = [{"start": 0, "end": 2, "words": [{"s": 0}, {"s": 0.5}, {"s": 1}]}, {"start": 2, "end": 4, "words": [{"s": 2}, {"s": 2.5}, {"s": 3}]}]
+    draft = {"sentences": ["a b c", "d e f"],
+             "beats": [{"cue": [0, 0], "shot": {"shot": "wide", "on": None, "move": "cut"}}, {"cue": [1, 1], "shot": {"shot": "close", "on": "syn.cleft", "move": "push"}}],
+             "elements": [{"id": "syn", "type": "Synapse", "cue": [0, 0], "props": {"stages": [{"name": "spike", "cue": [0, 2]}], "labels": [{"part": "cleft", "cue": [1, 0]}]}},
+                          {"id": "st", "type": "Stamp", "cue": [1, 0], "props": {"text": "X", "strikeCue": [1, 2]}}]}
+    spec = kit.resolve_cues(draft, timings, 4, "schematic-v1")
+    assert spec["camera"] == [{"t": 0.0, "shot": "wide", "move": "cut"}, {"t": 2.5, "shot": "close", "move": "push", "on": "syn.cleft"}]
+    assert spec["elements"][0]["props"]["stages"][0]["at"] == 1.0 and spec["elements"][1]["props"]["strikeAt"] == 3.0
+    assert kit.validate_spec(spec) == []
 
 
 def test_small_prop_mistakes_are_mended_not_dropped():
@@ -188,9 +207,13 @@ def test_style_library():
     for k in kit.KITS:
         t = kit.tokens(k)
         assert t["id"] == k and t["voice"]["name"] and t.get("art", {}).get("style")
-        if k not in ("zen-board-v1", "zen-board-hc-v1"):
-            assert len(kit.skill_md(k)) > len(kit.skill_md("zen-board-v1"))
-    assert len(kit.KITS) == 11 and len(kit.STYLE_GUIDE) == 10
+        if k not in kit.RETIRED_KITS:
+            assert "the bible" in kit.skill_md(k), k
+    assert len(kit.KITS) == 13 and len(kit.STYLE_GUIDE) == 10 and not (kit.RETIRED_KITS & set(kit.STYLE_GUIDE))
+    # every style has an example scene in the writer's own format
+    for k in kit.STYLE_GUIDE:
+        ex = kit.golden_scenes(k)
+        assert ex and "beats" in ex[0] and "sentences" in ex[0], k
     # the planner's style is used, but children never get an adult style, and an explicit choice always wins
     assert kit.choose_kit("auto", "adult", "chalkboard-v1") == "chalkboard-v1"
     assert kit.choose_kit("auto", "professional", "schematic-v1") == "schematic-v1"

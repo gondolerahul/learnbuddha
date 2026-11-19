@@ -138,7 +138,7 @@ class GeminiBrain:
         return self._json(prompts.planner_system(), user, prompts.PLAN_SCHEMA, effort="high", op="plan", on_text=on_partial)
 
     def draft_scene(self, ctx: SceneContext) -> dict:
-        return prompts.from_wire(self._json(prompts.scene_system(kit_id=ctx.kit), prompts.scene_user(ctx), prompts.scene_schema(False), effort=_thinking(ctx.urgent), op="scene_script"))
+        return prompts.from_wire(self._json(prompts.scene_system(kit_id=ctx.kit, sets=prompts.scene_sets(ctx)), prompts.scene_user(ctx), prompts.scene_schema(False), effort=_thinking(ctx.urgent), op="scene_script"))
 
     def draft_answer(self, ctx: AnswerContext) -> dict:
         return prompts.from_wire(self._json(prompts.scene_system(answer_mode=True, kit_id=ctx.kit), prompts.answer_user(ctx), prompts.scene_schema(True), effort=_thinking(True), op="answer_script"))

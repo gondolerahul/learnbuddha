@@ -35,6 +35,7 @@ class Course(Base):
     title: Mapped[str] = mapped_column(Text, default="")
     summary: Mapped[str] = mapped_column(Text, default="")
     sources: Mapped[list] = mapped_column(JSONB, default=list)
+    direction: Mapped[dict] = mapped_column(JSONB, default=dict)  # the plan's design read: how the course should look and move
     status: Mapped[str] = mapped_column(String(16), default="planning")  # planning|ready|failed
     version: Mapped[int] = mapped_column(Integer, default=1)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -66,6 +67,7 @@ class Scene(Base):
     objective: Mapped[str] = mapped_column(Text, default="")
     key_points: Mapped[list] = mapped_column(JSONB, default=list)
     visual_idea: Mapped[str] = mapped_column(Text, default="")
+    direction: Mapped[dict] = mapped_column(JSONB, default=dict)  # central image, set, optional hand-off from the previous scene
     target_seconds: Mapped[int] = mapped_column(Integer, default=45)
     cache_key: Mapped[str] = mapped_column(String(64), default="", index=True)
     status: Mapped[str] = mapped_column(String(16), default="queued")  # queued|working|ready|failed

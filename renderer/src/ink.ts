@@ -1,6 +1,7 @@
 // Hand-drawn ink primitives: wobbly strokes that can be partially drawn (0..1).
 import type { Ctx, Env } from "./types";
 import { clamp, rngFor } from "./util";
+import { kitStroke } from "./art/paint";
 
 export type P = [number, number];
 
@@ -65,9 +66,30 @@ export function partial(pts: P[], k: number): P[] {
   return out;
 }
 
-/** Brush-like stroke: main pass plus a thin, offset dry-brush pass. */
+// The kit being drawn right now (set by drawScene for each frame), so marks, arrows and axes are drawn in the kit's
+// hand without every caller passing it. Render threads each have their own copy of this module.
+let activeKit: { tokens: any; t: number } | null = null;
+export function setActiveKit(tokens: any, t: number) {
+  const prev = activeKit;
+  activeKit = { tokens, t };
+  return prev;
+}
+export function restoreActiveKit(prev: { tokens: any; t: number } | null) {
+  activeKit = prev;
+}
+
+/** A stroke in the kit's hand: a brush, chalk, a riso plate, a glowing line… (art/material.ts). */
 export function inkStroke(ctx: Ctx, pts: P[], colorStr: string, width: number, alpha = 1) {
   if (pts.length < 2) return;
+  const style = activeKit?.tokens?.art?.style;
+  if (activeKit && style && style !== "zen" && style !== "comic" && style !== "inkwash") {
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    const seed = (Math.round(pts[0][0]) * 31 + Math.round(pts[0][1]) * 7) & 0xffff;
+    kitStroke(ctx, activeKit.tokens, activeKit.t, pts, colorStr, width, seed);
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";

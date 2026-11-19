@@ -1,0 +1,131 @@
+{
+ "title": "A day longer than a year",
+ "kit": "cinematic-dark-v1",
+ "sentences": [
+  "Venus turns so slowly that its day is longer than its year.",
+  "Watch it race around the sun beside the Earth.",
+  "Venus finishes a whole orbit in two hundred and twenty five days.",
+  "But spinning once on its axis takes two hundred and forty three."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the sun and the orbits draw in",
+   "lead": "orbits",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "both planets set off, lap counters running",
+   "lead": "orbits",
+   "shot": null,
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "close on Venus",
+   "lead": "orbits",
+   "shot": {
+    "shot": "medium",
+    "on": "orbits",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "the claim lands",
+   "lead": "fact",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "orbits",
+   "type": "Orbits",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "center": "sun",
+    "counters": true,
+    "stages": [
+     {
+      "name": "start",
+      "cue": [
+       1,
+       2
+      ]
+     }
+    ],
+    "bodies": [
+     {
+      "name": "venus",
+      "kind": "planet",
+      "radius": 200,
+      "size": 34,
+      "period": 3.4,
+      "label": "Venus",
+      "color": "ochre"
+     },
+     {
+      "name": "earth",
+      "kind": "earth",
+      "radius": 320,
+      "size": 38,
+      "period": 5.5,
+      "label": "Earth"
+     }
+    ]
+   }
+  },
+  {
+   "id": "fact",
+   "type": "Callout",
+   "cue": [
+    3,
+    7
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Day: 243 Earth days. Year: 225.",
+    "x": 900,
+    "y": 560,
+    "w": 330,
+    "tone": "accent"
+   }
+  }
+ ]
+}

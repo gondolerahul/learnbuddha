@@ -15,26 +15,29 @@ DEFAULT_KIT = "zen-board-v1"
 CHILD_KIT = "storybook-v1"
 AUTO_KIT = "auto"  # chosen by the planner from who the learner is
 KITS = {
-    "zen-board-v1": "Zen Board", "zen-board-hc-v1": "Zen Board · High contrast", "storybook-v1": "Storybook",
-    "chalkboard-v1": "Chalkboard", "blueprint-v1": "Blueprint", "watercolor-v1": "Field notes", "papercut-v1": "Paper cut-out",
-    "inkwash-v1": "Ink wash", "schematic-v1": "Clinical schematic", "cinematic-dark-v1": "Dark cinematic", "comic-v1": "Comic",
+    "zen-board-v1": "Zen ink", "zen-board-hc-v1": "Zen ink · High contrast", "storybook-v1": "Storybook",
+    "flat-explainer-v1": "Flat explainer", "watercolor-v1": "Field notes", "cinematic-dark-v1": "Night glow",
+    "schematic-v1": "Clinical cutaway", "chalkboard-v1": "Chalkboard", "papercut-v1": "Paper shadowbox", "blueprint-v1": "Blueprint",
+    "riso-v1": "Riso collage", "inkwash-v1": "Ink wash (retired)", "comic-v1": "Comic (retired)",
 }
+# Kept so scenes made with them still render; never offered to the planner or in the style picker.
+RETIRED_KITS = {"inkwash-v1", "comic-v1"}
 CHILD_AUDIENCES = {"young_child", "child"}
 # Styles the planner may choose, with what each is for (shown to the planner).
 STYLE_GUIDE = {
-    "zen-board-v1": "calm paper and ink: the general default (humanities, business, everyday skills, anything not below)",
-    "chalkboard-v1": "chalk on a board: maths, statistics, physics derivations, worked problems",
-    "blueprint-v1": "technical drawing on blue: engineering, machines, how things work, architecture, electronics",
-    "watercolor-v1": "naturalist's field notes: biology, ecology, plants and animals, geography, earth science",
-    "schematic-v1": "clean textbook figure: medicine, anatomy, physiology, pharmacology, chemistry, professional training",
-    "cinematic-dark-v1": "dark documentary: space and astronomy, the very large or very small, dramatic history",
-    "inkwash-v1": "brush and ink: literature, philosophy, poetry, art, culture, reflective history",
-    "comic-v1": "comic page: stories, events, economics and social topics told through characters (teens)",
-    "storybook-v1": "picture book with a guide character: children aged about 5–11, any subject",
-    "papercut-v1": "paper puppet theatre: children's stories, history and social studies for young learners",
+    "zen-board-v1": "Zen ink: brush and ink on rice paper, one vermilion seal. The general default: humanities, history, philosophy, literature, everyday skills, anything not below",
+    "flat-explainer-v1": "Flat explainer: bold flat shapes, one amber accent, crisp type. Technology, business, economics, statistics, data, how systems and software work",
+    "watercolor-v1": "Field notes: a naturalist's watercolour notebook. Biology, ecology, plants and animals, geography, earth science",
+    "cinematic-dark-v1": "Night glow: glowing line work on a dark set. Space and astronomy, physics, the very large and the very small, dramatic science",
+    "schematic-v1": "Clinical cutaway: clean textbook figures and cutaways. Medicine, anatomy, physiology, pharmacology, chemistry, professional training",
+    "chalkboard-v1": "Chalkboard: chalk on slate. Maths, statistics working, physics derivations, worked problems",
+    "blueprint-v1": "Blueprint: technical drawing on blue. Engineering, machines, how things work, architecture, electronics",
+    "riso-v1": "Riso collage: risograph print and cut-outs. Social studies, civics, economics stories, current affairs, for teens and adults",
+    "storybook-v1": "Storybook: a picture book with Buddy the guide. Children aged about 5–11, any subject",
+    "papercut-v1": "Paper shadowbox: a layered paper theatre. Stories, history and social studies for young learners",
 }
 CHILD_KITS = {"storybook-v1", "papercut-v1"}
-CHILD_OK = CHILD_KITS | {"watercolor-v1", "comic-v1", "chalkboard-v1"}
+CHILD_OK = CHILD_KITS | {"watercolor-v1", "chalkboard-v1"}
 GENERIC_PROPS = ("motion", "loop", "loopSpeed", "depth")  # any element may carry these
 LOOPS = {"bob", "float", "pulse", "breathe", "spin", "sway", "shake"}
 PARTICLE_KINDS = {"dot", "drop", "vapor", "bubble", "snow", "spark", "arrow", "rbc", "wbc", "water", "molecule", "oxygen", "co2", "glucose",
@@ -91,12 +94,20 @@ def components() -> dict:
 
 
 @lru_cache
+def direction_md() -> str:
+    """The shared direction brief every scene writer gets, whatever the kit."""
+    p = STYLEKIT_DIR / "DIRECTION.md"
+    return p.read_text(encoding="utf-8") if p.exists() else ""
+
+
+@lru_cache
 def skill_md(kit: str = DEFAULT_KIT) -> str:
-    base = (STYLEKIT_DIR / "zen-board-v1" / "SKILL.md").read_text(encoding="utf-8")
-    extra = STYLEKIT_DIR / kit / "SKILL.md"
-    if kit != "zen-board-v1" and extra.exists():
-        base += "\n\n" + extra.read_text(encoding="utf-8")
-    return base
+    """The kit's own bible (its look, staging, camera, motion, type and sound). Kits do not inherit another kit's look."""
+    kit = kit if kit in KITS else DEFAULT_KIT
+    p = STYLEKIT_DIR / kit / "SKILL.md"
+    if not p.exists() and kit == "zen-board-hc-v1":
+        p = STYLEKIT_DIR / DEFAULT_KIT / "SKILL.md"
+    return p.read_text(encoding="utf-8") if p.exists() else ""
 
 
 @lru_cache
@@ -105,13 +116,25 @@ def _all_golden() -> list[dict]:
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(d.glob("*.json"))]
 
 
-def golden_scenes(kit: str = DEFAULT_KIT) -> list[dict]:
-    """Reference scenes for the prompt: the children's ones for Storybook, the others for everyone else
-    (the answer-clip example goes to both). `speech` is pipeline-provided, so it is left out."""
+@lru_cache
+def _kit_golden(kit: str) -> list[dict]:
+    d = STYLEKIT_DIR / kit / "examples"
+    return [{k: v for k, v in json.loads(p.read_text(encoding="utf-8")).items() if k not in ("kit", "title")}
+            for p in sorted(d.glob("*.json"))] if d.exists() else []
+
+
+def golden_scenes(kit: str = DEFAULT_KIT, answer_mode: bool = False) -> list[dict]:
+    """Example scenes for the prompt: the kit's own (written as drafts, in the scene writer's own format), or, for a kit
+    without any yet, the general ones. The answer-clip example only goes to answer clips. `speech` is pipeline data."""
+    own = [g for g in _kit_golden(kit if kit != "zen-board-hc-v1" else DEFAULT_KIT)]
+    if own:
+        return own
     child = kit in CHILD_KITS
     out = []
     for g in _all_golden():
         answer = any(e.get("type") == "FrozenFrame" for e in g.get("elements", []))
+        if answer != answer_mode:
+            continue
         if answer or (g.get("kit") in CHILD_KITS) == child:
             out.append({k: v for k, v in g.items() if k != "speech"})
     return out
@@ -145,13 +168,26 @@ def component_names(include_internal: bool = False) -> list[str]:
     return names
 
 
-def component_reference(answer_mode: bool = False) -> str:
-    """Compact component docs for prompts."""
+SETS = ["Synapse", "Cell", "Molecule", "Reaction", "Orbits", "Machine", "Circuit", "Timeline", "WorldMap", "TokenGrid", "Bars", "Contraption"]
+SYSTEMS = ["Landscape", "Nephron", "Body", "Epithelium"]
+# devices any scene may reach for, whatever its main set
+ALWAYS_SETS = {"TokenGrid", "Bars", "Molecule"}
+CHARACTER_KITS = {"storybook-v1", "papercut-v1", "flat-explainer-v1", "riso-v1", "chalkboard-v1"}
+
+
+def component_reference(answer_mode: bool = False, kit_id: str | None = None, sets: list[str] | None = None) -> str:
+    """Compact component docs for prompts. With `sets` (the planner's choice for this scene), only those sets and systems
+    are described, plus a few devices any scene may use; the Guide character is offered only in kits that cast it."""
+    wanted = set(sets or [])
     lines = [str(components().get("common", {}).get("motion", ""))]
     for name, c in components()["components"].items():
         if name in ("RecapCard", "ProgressBar"):
             continue
         if name == "FrozenFrame" and not answer_mode:
+            continue
+        if name == "Guide" and kit_id and kit_id not in CHARACTER_KITS:
+            continue
+        if wanted and (name in SETS or name in SYSTEMS) and name not in wanted and name not in ALWAYS_SETS and name != "Landscape":
             continue
         props = c["props"].get("properties", {})
         req = set(c["props"].get("required", []))
@@ -197,8 +233,53 @@ def cue_time(timings: list[dict], cue: Any, fallback: float = 0.0) -> float:
     return float(words[wi]["s"])
 
 
+def _resolve_nested(obj: Any, timings: list[dict], default: float) -> None:
+    """Every {"cue": [s, w]} inside props becomes {"at": seconds}, and every "<name>Cue" key becomes "<name>At"."""
+    if isinstance(obj, dict):
+        if "cue" in obj and isinstance(obj["cue"], (list, tuple, int, float)):
+            obj["at"] = round(cue_time(timings, obj.pop("cue"), default), 3)
+        for k in [k for k in obj if k.endswith("Cue") and k != "cue"]:
+            obj[k[:-3] + "At"] = round(cue_time(timings, obj.pop(k), default), 3)
+        for v in obj.values():
+            _resolve_nested(v, timings, default)
+    elif isinstance(obj, list):
+        for v in obj:
+            _resolve_nested(v, timings, default)
+
+
+SHOT_SIZES = {"wide", "medium", "close", "detail"}
+MOVES = {"cut", "push", "pull", "pan", "follow", "whip", "through", "hold"}
+
+
+def _camera_key(c: dict, timings: list[dict]) -> dict | None:
+    """A camera key from the draft: a named shot (shot, on, move) or, for older drafts, raw x/y/zoom."""
+    if not isinstance(c, dict):
+        return None
+    t = round(cue_time(timings, c.get("cue"), 0), 3)
+    key: dict[str, Any] = {"t": t}
+    if isinstance(c.get("x"), (int, float)) and isinstance(c.get("y"), (int, float)):
+        key.update(x=float(c["x"]), y=float(c["y"]), zoom=float(c.get("zoom") or 1))
+    else:
+        shot = c.get("shot") if c.get("shot") in SHOT_SIZES else None
+        move = c.get("move") if c.get("move") in MOVES else None
+        if not shot and not move:
+            return None
+        if shot:
+            key["shot"] = shot
+        if move:
+            key["move"] = move
+        on = c.get("on")
+        if isinstance(on, (str, list)) and on:
+            key["on"] = on
+    for opt, lo, hi in (("dur", 0.0, 8.0), ("focus", -1.0, 1.0), ("dof", 0.0, 10.0), ("shake", 0.0, 24.0)):
+        if isinstance(c.get(opt), (int, float)):
+            key[opt] = max(lo, min(hi, float(c[opt])))
+    return key
+
+
 def resolve_cues(draft: dict, timings: list[dict], duration: float, kit: str) -> dict:
-    """Turn the LLM's cue-based draft into an absolute-time scene spec."""
+    """Turn the LLM's cue-based draft into an absolute-time scene spec. The camera comes from the beats' shots (or,
+    for older drafts, a camera list)."""
     elements = []
     for raw in draft.get("elements", []):
         props = raw.get("props") or {}
@@ -210,27 +291,24 @@ def resolve_cues(draft: dict, timings: list[dict], duration: float, kit: str) ->
             el["dur"] = float(raw["dur"])
         if raw.get("fixed"):
             el["fixed"] = True
-        # nested cues
-        if isinstance(props.get("paracellular"), dict) and "cue" in props["paracellular"]:
-            props["paracellular"]["at"] = round(cue_time(timings, props["paracellular"].pop("cue"), at), 3)
         if isinstance(props.get("cues"), list):
             props["times"] = [round(cue_time(timings, c, at), 3) for c in props.pop("cues")]
-        for key in ("marks", "series", "motion", "poses", "flows", "stateKeys", "transporters"):
-            if isinstance(props.get(key), list):
-                for item in props[key]:
-                    if isinstance(item, dict) and "cue" in item:
-                        item["at"] = round(cue_time(timings, item.pop("cue"), at), 3)
+        _resolve_nested(props, timings, at)
         elements.append(el)
     camera = []
-    for c in draft.get("camera", []) or []:
-        try:
-            key = {"t": round(cue_time(timings, c.get("cue"), 0), 3), "x": float(c["x"]), "y": float(c["y"]), "zoom": float(c.get("zoom", 1))}
-            for opt, lo, hi in (("dur", 0.3, 8.0), ("focus", -1.0, 1.0), ("dof", 0.0, 10.0)):
-                if isinstance(c.get(opt), (int, float)):
-                    key[opt] = max(lo, min(hi, float(c[opt])))
-            camera.append(key)
-        except (KeyError, TypeError, ValueError):
-            continue
+    shots = [b.get("shot") for b in draft.get("beats", []) or [] if isinstance(b, dict) and isinstance(b.get("shot"), dict)]
+    for b in draft.get("beats", []) or []:
+        if isinstance(b, dict) and isinstance(b.get("shot"), dict):
+            sh = dict(b["shot"])
+            sh.setdefault("cue", b.get("cue"))
+            key = _camera_key(sh, timings)
+            if key:
+                camera.append(key)
+    if not shots:
+        for c in draft.get("camera", []) or []:
+            key = _camera_key(c, timings)
+            if key:
+                camera.append(key)
     spec: dict[str, Any] = {"kit": kit, "duration": duration, "seed": int(draft.get("seed") or 7), "elements": elements}
     if timings:  # sentence spans: talking characters move their mouths only while the narrator speaks
         spec["speech"] = [[round(float(s["start"]), 3), round(float(s["end"]), 3)] for s in timings]

@@ -1,7 +1,7 @@
 // Style Kit gallery: the same deterministic renderer the workers use, running live in the browser.
 // Scrub any golden scene (or any produced scene by id) frame-exactly.
 import { useEffect, useRef, useState } from "react";
-import { KITS, kitTokens, lintScene, renderScene, type SceneSpec } from "@kit/src/index";
+import { KITS, kitTokens, lintScene, renderScene, RETIRED_KITS, type SceneSpec } from "@kit/src/index";
 import { fontsReady } from "../lib/fonts";
 import { api } from "../lib/api";
 
@@ -20,8 +20,10 @@ export default function KitPage() {
   const [ready, setReady] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null);
 
+  const [examples, setExamples] = useState<Record<string, { title: string; kit: string; spec: SceneSpec }>>({});
   useEffect(() => {
     fontsReady.then(() => setReady(true));
+    fetch("/api/stylekit/examples").then((r) => (r.ok ? r.json() : {})).then(setExamples).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -73,12 +75,19 @@ export default function KitPage() {
   return (
     <main className="page">
       <section className="hero">
-        <h1>Style Kit · Zen Board v1</h1>
+        <h1>Style Kit · ten looks</h1>
         <p className="lede">
           Every lesson and every answer is drawn by one deterministic function, <code>renderScene(ctx, spec, t)</code>. This page runs
           it in your browser. The render workers run the same code in Node, which is how an answer can open on the exact frame you paused.
         </p>
       </section>
+      <div className="chips" style={{ marginBottom: 8 }}>
+        {Object.entries(examples).map(([n, ex]) => (
+          <button key={n} className={`chip ${n === name ? "on" : ""}`} onClick={() => { setName(n); setSpec(ex.spec); setKit(ex.kit); setT(0); }}>
+            {ex.title}
+          </button>
+        ))}
+      </div>
       <div className="chips" style={{ marginBottom: 12 }}>
         {names.map((n) => (
           <button key={n} className={`chip ${n === name ? "on" : ""}`} onClick={() => { setName(n); setSpec(golden[n]); setKit(golden[n].kit ?? "zen-board-v1"); setT(0); }}>
@@ -86,7 +95,7 @@ export default function KitPage() {
           </button>
         ))}
         <span style={{ flex: 1 }} />
-        {Object.values(KITS).map((k) => (
+        {Object.values(KITS).filter((k) => !RETIRED_KITS.has(k.id)).map((k) => (
           <button key={k.id} className={`chip ${kit === k.id ? "on" : ""}`} onClick={() => setKit(k.id)}>{k.name}</button>
         ))}
       </div>

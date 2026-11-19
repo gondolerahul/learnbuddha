@@ -1,6 +1,12 @@
-## Paper cut-out kit: young learners and storytelling
-Like a paper puppet theatre: layered cut-paper scenes, friendly faces, animated on twos.
-- Build a stage: a Landscape or a few big props as layers at different depths (backdrop −0.7, middle 0,
-  front 0.6–0.8) so camera moves show real parallax between paper layers.
-- Characters (props with faces, a Journey character, the Guide) act out the idea; simple words on screen (≤ 4).
-- Short sentences, gentle wonder; one thing happens at a time.
+## Paper shadowbox: the bible
+A paper theatre for young learners: hand-cut layers in a box, lit by a lamp, animated by hand.
+- **Look.** Flat paper shapes with hand-cut edges, paper fibre, crisp shadows between layers, a navy box behind.
+  Friendly faces; mustard (`accent`) for the hero.
+- **Staging.** Build a stage in layers: backdrop far (`depth` −0.7), the subject in the middle (0), foreground
+  framing near (0.6-0.8), so every camera move slides the paper layers past each other. A Landscape, Orbits (the moon
+  round the Earth), a Contraption, or a few big props; the `Guide` puppet can act.
+- **Camera.** Slow moves through the layers; push through a window or door to change scene (move through).
+- **Motion.** Stop motion: drawings on twos, each pose placed again by hand, a flickering lamp. One thing at a time.
+- **Words.** Simple words (≤ 4) on cream paper strips; rounded heading letters.
+- **Narration.** Short sentences, gentle wonder.
+- **Transition.** A new sheet slides over (kind sheet).

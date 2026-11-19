@@ -107,7 +107,7 @@ def _gemini_served() -> dict:
 def health() -> dict:
     s = get_settings()
     return {
-        "ok": True, "brain": s.brain, "brains": brain_options(), "tts": s.tts, "voice": s.voice, "kits": kit.KITS, "google": google_describe(),
+        "ok": True, "brain": s.brain, "brains": brain_options(), "tts": s.tts, "voice": s.voice, "kits": {k: v for k, v in kit.KITS.items() if k not in kit.RETIRED_KITS}, "google": google_describe(),
         "models": {"claude": s.claude_model, "gemini_brain": s.gemini_brain_model, "gemini_tts": s.gemini_tts_model, "gemini_live": s.gemini_live_model},
         "gemini_served": _gemini_served(),
     }
@@ -241,6 +241,21 @@ def read_scene(scene_id: str, db: Session = Depends(get_db)) -> dict:
     if sc is None:
         raise HTTPException(404, "scene not found")
     return {**scene_out(sc), "script": sc.script, "timings": sc.timings, "spec": sc.spec, "question": sc.question}
+
+
+_EXAMPLES: dict[str, dict] = {}
+
+
+@router.get("/stylekit/examples")
+def stylekit_examples() -> dict:
+    """Each style's example scene, laid out as the pipeline would (synthetic narration timing), for the gallery."""
+    from . import stylelab
+
+    if not _EXAMPLES:
+        for name, draft in stylelab.examples().items():
+            spec, _ = stylelab.draft_to_spec(draft, name.split("/")[0])
+            _EXAMPLES[name] = {"title": draft.get("title", name), "kit": name.split("/")[0], "spec": spec}
+    return _EXAMPLES
 
 
 @router.post("/courses/{course_id}/sessions")

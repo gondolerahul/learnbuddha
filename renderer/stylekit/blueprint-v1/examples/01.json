@@ -1,0 +1,155 @@
+{
+ "title": "Gears trade speed for force",
+ "kit": "blueprint-v1",
+ "sentences": [
+  "Gears trade speed for force.",
+  "This small driver gear has twelve teeth; the big one has thirty six.",
+  "So the big gear turns three times more slowly.",
+  "But it turns with three times the force."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the train is drawn and starts",
+   "lead": "gears",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "the driver",
+   "lead": "gears",
+   "shot": {
+    "shot": "medium",
+    "on": "gears.driver",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "follow the power to the big gear",
+   "lead": "gears",
+   "shot": {
+    "shot": "medium",
+    "on": [
+     "gears.driver",
+     "gears.driven"
+    ],
+    "move": "follow",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "the whole train",
+   "lead": "note",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Speed for force"
+   },
+   "fixed": true
+  },
+  {
+   "id": "gears",
+   "type": "Machine",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "preset": "gears",
+    "teeth": [
+     12,
+     36
+    ],
+    "y": 420,
+    "stages": [
+     {
+      "name": "start",
+      "cue": [
+       0,
+       1
+      ]
+     }
+    ],
+    "labels": [
+     {
+      "part": "driver",
+      "cue": [
+       1,
+       2
+      ]
+     },
+     {
+      "part": "driven",
+      "cue": [
+       1,
+       8
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "note",
+   "type": "Callout",
+   "cue": [
+    3,
+    4
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Ratio 3 : 1",
+    "x": 980,
+    "y": 160,
+    "w": 240,
+    "tone": "accent"
+   }
+  }
+ ]
+}

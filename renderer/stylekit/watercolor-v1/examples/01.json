@@ -1,0 +1,227 @@
+{
+ "title": "How a leaf makes food",
+ "kit": "watercolor-v1",
+ "sentences": [
+  "A leaf is a little kitchen that runs on sunlight.",
+  "Light pours in from the sun, while carbon dioxide drifts in through tiny pores.",
+  "Water climbs up from the roots to meet them.",
+  "The leaf turns them into sugar, and breathes out oxygen."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the plant in its patch of sun",
+   "lead": "plant",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "light and carbon dioxide flow into the leaf",
+   "lead": "light",
+   "shot": {
+    "shot": "medium",
+    "on": "plant",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "water climbs the stem",
+   "lead": "water",
+   "shot": {
+    "shot": "close",
+    "on": "plant",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "oxygen leaves; the whole plant again",
+   "lead": "o2",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "A kitchen that runs on light"
+   },
+   "fixed": true
+  },
+  {
+   "id": "sun",
+   "type": "Prop",
+   "cue": [
+    0,
+    9
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "kind": "sun",
+    "x": 220,
+    "y": 170,
+    "size": 150
+   }
+  },
+  {
+   "id": "plant",
+   "type": "Prop",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "kind": "plant",
+    "x": 700,
+    "y": 430,
+    "size": 340
+   }
+  },
+  {
+   "id": "light",
+   "type": "Particles",
+   "cue": [
+    1,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "path": [
+     "sun",
+     "plant"
+    ],
+    "kind": "photon",
+    "count": 10,
+    "speed": 160
+   }
+  },
+  {
+   "id": "co2",
+   "type": "Particles",
+   "cue": [
+    1,
+    7
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "path": [
+     [
+      1150,
+      300
+     ],
+     "plant"
+    ],
+    "kind": "co2",
+    "count": 8,
+    "speed": 70,
+    "label": "CO2"
+   }
+  },
+  {
+   "id": "water",
+   "type": "Particles",
+   "cue": [
+    2,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "path": [
+     [
+      700,
+      640
+     ],
+     "plant"
+    ],
+    "kind": "water",
+    "count": 8,
+    "speed": 60
+   }
+  },
+  {
+   "id": "o2",
+   "type": "Particles",
+   "cue": [
+    3,
+    9
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "path": [
+     "plant",
+     [
+      1100,
+      120
+     ]
+    ],
+    "kind": "oxygen",
+    "count": 8,
+    "speed": 70,
+    "label": "O2"
+   }
+  },
+  {
+   "id": "l1",
+   "type": "Label",
+   "cue": [
+    3,
+    5
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "sugar made here",
+    "target": "plant",
+    "x": 330,
+    "y": 470
+   }
+  }
+ ]
+}

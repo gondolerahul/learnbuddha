@@ -90,7 +90,9 @@ class MockBrain:
         else:
             elements.append({"id": "viz", "type": "Flow", "cue": [2, 0], "until_cue": None, "dur": None, "props": {"nodes": [{"id": "a", "label": "Question", "x": 860, "y": 220, "w": 200, "h": 80}, {"id": "b", "label": "Idea", "x": 860, "y": 420, "w": 200, "h": 80}], "edges": [{"from": "a", "to": "b", "label": "leads to"}]}})
         elements.append({"id": "ul", "type": "Underline", "cue": [len(sentences) - 1, 1], "until_cue": None, "dur": None, "props": {"target": "pts"}})
-        return {"sentences": sentences, "elements": elements, "camera": []}
+        beats = [{"cue": [0, 0], "change": "the picture builds", "lead": "h", "shot": {"shot": "wide", "on": None, "move": "cut", "dur": None, "shake": None}, "hold": False},
+                 {"cue": [2, 0], "change": "look closer", "lead": "viz", "shot": {"shot": "medium", "on": "viz", "move": "push", "dur": None, "shake": None}, "hold": True}]
+        return {"sentences": sentences, "beats": beats, "elements": elements}
 
     def draft_answer(self, ctx: AnswerContext) -> dict:
         q = ctx.question.strip().rstrip("?") + "?"

@@ -28,7 +28,17 @@ Used in LearnBuddha:
   idle layers on every channel, follow-through by delay, two-segment limbs, blink timing, gaze leading head turns,
   squash that keeps volume) and the subject recipes in `MOTION.md`.
 
-## Licence text (MIT, identical for both projects above)
+## opus-js-animations — MIT
+
+Copyright (c) 2026 klsoen · https://github.com/klsoen/opus-js-animations
+
+Used in LearnBuddha:
+- `renderer/src/art/material.ts`: hand-cut paper edges pushed along the normal by noise, and shading toward the ink or
+  the paper rather than toward black or white (`references/styles.md` §2).
+- `renderer/src/text.ts` and `renderer/stylekit/DIRECTION.md`: text that rises into place, restraint ("rich rendering of
+  few elements"), and the two clocks of stop motion (poses held, camera smooth) (`references/design.md`, `styles.md`).
+
+## Licence text (MIT, identical for the three projects above)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +58,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+## Data and fonts
+
+- **world-atlas** (ISC, Mike Bostock) with **Natural Earth** country shapes (public domain), and **topojson-client** (ISC):
+  the WorldMap set.
+- Fonts from **@fontsource** (all SIL Open Font License 1.1): Kalam, Source Serif 4, Noto Sans Math, Caveat, Lora,
+  Poppins, Fredoka, Space Grotesk, JetBrains Mono, Fredericka the Great, Patrick Hand, Architects Daughter, Archivo Black,
+  Courier Prime, Inter.
+
 ## Studied but not copied
+
+- **onetake** (PolyForm Noncommercial) and **OpenMontage** (AGPL-3.0): ideas only (beats that grow out of each other,
+  still rests, motion blur on fast moves, taste dials). No code or text from either is used.
+- **VOX-COLLAGE-BROLL** (MIT): its collage visual language informed Riso collage; its pipeline uses image and video
+  models, so nothing of it is used.
 
 - **claude-drawing-skill** (MIT, Copyright (c) 2026 cloveric, https://github.com/cloveric/claude-drawing-skill):
   its painting principles (paint back to front, one key light, aerial perspective, few big shapes) informed the

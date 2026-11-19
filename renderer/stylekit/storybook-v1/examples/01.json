@@ -1,0 +1,255 @@
+{
+ "title": "Where rain comes from",
+ "kit": "storybook-v1",
+ "sentences": [
+  "The sun warms the sea, and tiny drops of water float up.",
+  "Up high it is cold, so the drops huddle into a cloud.",
+  "When the cloud gets too heavy, drip, drop, it rains!",
+  "The rain runs back to the sea, and it all starts again."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the world builds, the sun shines on the sea",
+   "lead": "land",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    0,
+    6
+   ],
+   "change": "vapour rises from the sea",
+   "lead": "vapor",
+   "shot": {
+    "shot": "medium",
+    "on": "land.seaSurface",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "the cloud grows",
+   "lead": "cloud",
+   "shot": {
+    "shot": "medium",
+    "on": "cloud",
+    "move": "pan",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    6
+   ],
+   "change": "rain falls",
+   "lead": "rain",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "Buddy cheers as the cycle restarts",
+   "lead": "buddy",
+   "shot": null,
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "land",
+   "type": "Landscape",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "sea": "left",
+    "mountains": "right",
+    "sun": "left",
+    "trees": 3
+   }
+  },
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Where does rain come from?"
+   },
+   "fixed": true
+  },
+  {
+   "id": "buddy",
+   "type": "Guide",
+   "cue": [
+    0,
+    1
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "x": 1110,
+    "y": 560,
+    "size": 160,
+    "poses": [
+     {
+      "cue": [
+       0,
+       1
+      ],
+      "pose": "wave"
+     },
+     {
+      "cue": [
+       0,
+       6
+      ],
+      "pose": "point"
+     },
+     {
+      "cue": [
+       1,
+       8
+      ],
+      "pose": "think"
+     },
+     {
+      "cue": [
+       3,
+       10
+      ],
+      "pose": "cheer"
+     }
+    ],
+    "pointAt": "land.seaSurface",
+    "talk": true
+   }
+  },
+  {
+   "id": "vapor",
+   "type": "Particles",
+   "cue": [
+    0,
+    6
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "path": [
+     "land.seaSurface",
+     [
+      520,
+      160
+     ]
+    ],
+    "kind": "vapor",
+    "count": 14,
+    "speed": 60,
+    "spread": 120
+   }
+  },
+  {
+   "id": "cloud",
+   "type": "Prop",
+   "cue": [
+    1,
+    8
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "kind": "cloud",
+    "x": 560,
+    "y": 150,
+    "size": 150,
+    "stateKeys": [
+     {
+      "cue": [
+       2,
+       5
+      ],
+      "v": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "rain",
+   "type": "Particles",
+   "cue": [
+    2,
+    6
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "path": [
+     [
+      560,
+      200
+     ],
+     [
+      900,
+      470
+     ]
+    ],
+    "kind": "drop",
+    "count": 18,
+    "speed": 180,
+    "spread": 90
+   }
+  },
+  {
+   "id": "l1",
+   "type": "Label",
+   "cue": [
+    1,
+    11
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Cloud",
+    "target": "cloud",
+    "x": 760,
+    "y": 120
+   }
+  }
+ ]
+}

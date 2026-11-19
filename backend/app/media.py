@@ -241,12 +241,36 @@ def still(spec: dict, t: float, out_path: Path) -> None:
     run_renderer(["still", "--spec", "-", "--t", str(t), "--out", str(out_path)], stdin=json.dumps(spec).encode())
 
 
-def bed_expr(level: float) -> str:
-    # A quiet, slowly breathing A-major pad. Deterministic; Lyria can replace this later.
-    return (
-        f"{level}*0.33*(sin(2*PI*110*t)+0.6*sin(2*PI*164.81*t)+0.45*sin(2*PI*220*t)+0.3*sin(2*PI*277.18*t))"
-        "*(0.6+0.4*sin(2*PI*0.06*t+1.3))"
-    )
+# A quiet music bed per kit (tokens.sound): the chord it holds, how it breathes, and any pulse. Deterministic.
+BEDS: dict[str, tuple[list[float], str]] = {
+    # sound palette: (frequencies, amplitude envelope over t)
+    "zen": ([73.42, 110.0, 146.83, 220.0], "(0.55+0.45*sin(2*PI*0.04*t+1.1))"),  # a D drone with an open fifth, very slow
+    "storybook": ([130.81, 196.0, 261.63, 329.63, 392.0], "(0.6+0.4*sin(2*PI*0.08*t))"),  # C major, warm
+    "flat": ([110.0, 164.81, 196.0, 261.63], "(0.55+0.45*(0.5+0.5*sin(2*PI*1.93*t)))"),  # Am7 with a soft 116 bpm pulse
+    "field": ([98.0, 146.83, 196.0, 293.66], "(0.6+0.4*sin(2*PI*0.05*t+0.4))"),  # open G
+    "night": ([55.0, 82.41, 110.0, 659.26], "(0.5+0.5*sin(2*PI*0.03*t+2.0))"),  # a deep drone with a faint high star
+    "clinical": ([130.81, 196.0, 261.63], "(0.7+0.3*sin(2*PI*0.05*t))"),
+    "chalk": ([87.31, 130.81, 174.61, 220.0], "(0.6+0.4*sin(2*PI*0.06*t+1.3))"),  # F major
+    "paper": ([261.63, 392.0, 523.25, 659.26], "(0.35+0.65*exp(-6*mod(t,0.517)))"),  # a music-box tick of the chord
+    "blueprint": ([65.41, 98.0, 130.81], "(0.6+0.4*sin(2*PI*0.07*t))"),
+    "riso": ([110.0, 130.81, 164.81, 196.0], "(0.4+0.6*exp(-5*mod(t,0.517)))"),  # lo-fi chord stabs at 116 bpm
+}
+
+
+def bed_expr(level: float, palette: str = "") -> str:
+    freqs, env = BEDS.get(palette, ([110.0, 164.81, 220.0, 277.18], "(0.6+0.4*sin(2*PI*0.06*t+1.3))"))
+    weights = [1.0, 0.6, 0.45, 0.3, 0.22]
+    tones = "+".join(f"{weights[i % len(weights)]}*sin(2*PI*{f}*t)" for i, f in enumerate(freqs))
+    return f"{level}*0.33*({tones})*{env}"
+
+
+def bed_palette(spec: dict) -> str:
+    try:
+        from . import kit as _kit
+
+        return str(_kit.tokens(spec.get("kit") or _kit.DEFAULT_KIT).get("sound", ""))
+    except Exception:
+        return ""
 
 
 def _grade(spec: dict) -> str:
@@ -273,7 +297,8 @@ def _grade(spec: dict) -> str:
         chain.append(f"vignette=angle={0.35 + vig:.3f}")
     grain = float(f.get("grain", 0) or 0)
     if grain > 0:
-        chain.append(f"noise=alls={max(1, round(grain * 140))}:allf=t")
+        # a still grain, like the tooth of the paper: grain that changes every frame spends the bitrate fine lines need
+        chain.append(f"noise=alls={max(1, round(grain * 110))}:allf=u")
     body = ",".join(chain)
     if pre:
         return pre + ("," + body if body else "")
@@ -328,12 +353,12 @@ def encode_scene(
         s.ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-y",
         "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{w}x{h}", "-r", str(fps), "-i", f"tcp://127.0.0.1:{port}?listen=1",
         "-i", str(narration_wav),
-        "-f", "lavfi", "-i", f"aevalsrc={bed_expr(music_level)}:s=48000:c=stereo:d={dur}",
+        "-f", "lavfi", "-i", f"aevalsrc={bed_expr(music_level, bed_palette(spec))}:s=48000:c=stereo:d={dur}",
         *(["-i", str(sfx_wav)] if sfx_wav else []),
         "-filter_complex", filt,
         "-map", "[vout]", "-map", "[aout]",
         "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-level", "3.1", "-pix_fmt", "yuv420p",
-        "-crf", "23", "-bf", "0", "-g", "600", "-sc_threshold", "0", "-force_key_frames", kf_arg,
+        "-crf", "21", "-tune", "animation", "-bf", "0", "-g", "600", "-sc_threshold", "0", "-force_key_frames", kf_arg,
         "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2",
         "-t", f"{dur}",
         "-movflags", "+frag_keyframe+empty_moov+default_base_moof",

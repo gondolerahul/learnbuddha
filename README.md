@@ -83,31 +83,46 @@ The app sets the Anthropic base URL explicitly, so an inherited `ANTHROPIC_BASE_
   - **Sound:** a quiet effects track (pops, ticks, rises, whooshes, chimes) is generated from the scene's actions.
   - **Credits:** the motion engine and direction rules adapt cinecode and rossark-motion-skill (both MIT, see
     `NOTICE.md`).
-- **A style library (11 kits).**
-  - **What a kit is:** each kit is one `tokens.json` plus a short `SKILL.md`. It sets the palette, the drawing
-    treatment, the surface, the texture, the light, the motion tone, the camera drift, the film finish and the narrator.
-  - **How a style is chosen:** with the style left on "Fits the subject and learner", the planner picks one from
-    the subject (`kit.STYLE_GUIDE`). Children always get a child-friendly kit.
+- **Ten looks, each with its own hand.** A kit is a `tokens.json` (palette, material, light, type, label style, camera
+  feel, surface, film finish, signature transition, sound palette, narrator), a `SKILL.md` bible for the scene writer
+  and an example scene in `examples/`. The paint helpers hand every shape over as geometry and the kit's material
+  draws it (`renderer/src/art/material.ts`): brush lines that swell and taper with a dry-brush tail, chalk that skips
+  the board, watercolour washes with wet edges, hand-cut paper, riso plates out of register, glowing line work. Lines
+  "boil" between three traced variants, as hand-drawn animation does. With the style left on "Fits the subject and
+  learner", the planner picks a look from the subject; children always get a child-friendly one.
 
-  | Kit | For | Treatment |
+  | Kit | For | Look |
   |---|---|---|
-  | Zen Board | general default | ink on paper |
-  | Zen Board · High contrast | accessibility (chosen by hand) | crisp black on white |
-  | Storybook | children | cartoon, faces, Buddy the guide |
-  | Paper cut-out | young learners, stories | layered paper with crisp shadows, animated on twos |
-  | Chalkboard | maths, physics | broken chalk lines on a slate board |
-  | Blueprint | engineering, machines | white linework on blue grid paper |
-  | Field notes | biology, nature, geography | watercolour washes and a pen line |
-  | Clinical schematic | medicine, anatomy, chemistry | clean textbook figures, serif labels |
-  | Dark cinematic | space, the very large and small | glowing subjects on a dark set |
-  | Ink wash | literature, philosophy, culture | grey brush washes, one red seal accent |
-  | Comic | stories and events for teens | bold ink, cel shading, halftone, animated on twos |
-- **The look follows the learner.** The planner decides who is learning (`audience`). With the style left on "Fits
-  the learner", children get the **Storybook** kit: bright colours, friendly faces, short words and Buddy, a guide
-  character who talks, points and cheers in time with the narration. Everyone else gets **Zen Board**, with accurate,
-  labelled, animated schematics.
-- **Rich scenes.** The scene writer's prompt ends with a four-layer checklist: a place (a Landscape, a body system, or a stage of library pictures, even for maths), 4+ different pictures, 5+ things moving with a physical cause, and 4–6 camera shots. Each scene request gives exact counts for its length (an element about every 2.5 s). Small prop mistakes (a value past its limit, an unknown option) are mended in code rather than losing the element.
-- **Scenes are data.** Claude writes `sentences` (narration) plus `elements`, each timed by a word cue `[sentence, word]`. TTS runs per sentence, which gives exact sentence boundaries. Cues resolve to real times, the spec is validated against `components.json`, and the renderer lints the layout (overflow, overlap, out-of-frame, bad targets) and repairs it in code: it moves text to the nearest free space, shrinks what cannot fit, ends an earlier text when a later one needs its place, and drops annotations whose target is missing. The checks run as the camera frames each shot: text that appears during a push-in must be fully in it (the fixer reframes the shot), earlier text may leave the shot but not be half cut (it leaves as the push-in starts), and pinned headings must not cover pictures anywhere the camera carries them, including a landscape's sun, trees and clouds. Pictures are never moved, since where the sun is can be the lesson. No model call; about half a second a scene.
+  | Zen ink (default) | humanities, history, everyday | brush and ink on rice paper, one vermilion seal |
+  | Flat explainer | tech, business, economics, data | flat shapes, soft shadows, one amber accent |
+  | Field notes | biology, ecology, earth science | a naturalist's watercolour notebook |
+  | Night glow | space, physics, the very small | glowing line work on a dark set |
+  | Clinical cutaway | medicine, anatomy, chemistry | clean textbook cutaways |
+  | Chalkboard | maths, derivations | chalk on slate, drawn with a chalk tip |
+  | Blueprint | engineering, machines | linework and hatching on blue grid paper |
+  | Riso collage | social studies, teens | four riso inks overprinting, stop motion on threes |
+  | Storybook | children 5-11 | cel colour, friendly faces, Buddy the guide |
+  | Paper shadowbox | young learners, stories | hand-cut paper layers in a lit box, stop motion |
+
+  Zen ink · High contrast is the accessible variant; Ink wash and Comic are retired (old scenes still render).
+- **Sets: the model directs, the renderer draws.** Whole subjects are drawn in code, accurately, with stages the
+  narration triggers on its words: Synapse, Cell, Molecule, Reaction (the reactants' atoms really fly to their places in
+  the products), Orbits, Machine (meshing gears, crank and piston, lever, pulley), Circuit, Timeline, WorldMap (Natural
+  Earth shapes: countries light up, an empire floods out, routes draw on), TokenGrid, Bars (they can race), Stamp and
+  Contraption (an abstract process as a machine). They join Landscape, Nephron, Body and Epithelium.
+- **Directed, not filled.** The planner writes a design read for the course and, per scene, the one central image and
+  the set it is built on. The scene writer plans 3-6 beats of uneven length before the elements, one lead per beat,
+  with rests after the reveal; each beat may name a shot (`wide`/`medium`/`close`/`detail` on a target, moved by
+  `cut`/`push`/`pull`/`pan`/`follow`/`whip`/`through`/`hold`). The camera engine frames the shot itself, keeps labels
+  in it, eases zoom in log space, holds still between moves and adds motion blur to fast moves. A transition per kit
+  (brush, iris, slide, watercolour bleed, light bloom, dissolve, eraser, paper sheet, print) joins two sets.
+- **A guide who acts.** Kits that cast one have their own puppet (Buddy in Storybook and Paper shadowbox, a block-figure
+  presenter in Flat explainer and Riso collage, a chalk stick figure on the Chalkboard); its pointing arm is solved with
+  two-bone IK so the hand lands on the anchor it names. Lint adds advisory direction notes (a camera that never rests,
+  shots on an even beat, empty boxes standing in for things).
+- **Style lab.** `python -m app.stylelab` (from `backend/`) renders each kit's example as a contact sheet in
+  `media/stylelab/`; `--bench` renders every example in every kit; `--critic` asks a vision model for notes (lab only).
+- **Scenes are data.** Claude writes `sentences` (narration), `beats` (the plan, with the shots) and `elements`, each timed by a word cue `[sentence, word]`. TTS runs per sentence, which gives exact sentence boundaries. Cues resolve to real times, the spec is validated against `components.json`, and the renderer lints the layout (overflow, overlap, out-of-frame, bad targets) and repairs it in code: it moves text to the nearest free space, shrinks what cannot fit, ends an earlier text when a later one needs its place, and drops annotations whose target is missing. The checks run as the camera frames each shot: text that appears during a push-in must be fully in it (the fixer reframes the shot), earlier text may leave the shot but not be half cut (it leaves as the push-in starts), and pinned headings must not cover pictures anywhere the camera carries them, including a landscape's sun, trees and clouds. Pictures are never moved, since where the sun is can be the lesson. No model call; about half a second a scene.
 - **Speed.** The plan is streamed: the first scene (a 15–20 s hook) is queued as soon as its outline appears, while the rest of the plan is still being written. All of a course's scenes are scripted at once (`WORKER_THREADS`, default 8); renders queue at the render gate. A scene starts streaming while it is still rendering, once the render is far enough ahead that playback cannot catch it. Lit pictures are kept as sprites (idle loops step 12 times a second) and video is 24 fps. `SCENE_THINKING` (default medium) sets how hard the model thinks before writing a scene.
 - **Instant answers.** While the voice tutor answers, it can call `point_at` to circle, arrow or underline something on the paused frame; the browser draws it at once from the same renderer. Clips (`show_visual_answer`) are for doubts that need a new picture.
 - **Render.** Scene jobs overlap their model calls, and lesson renders are gated, earliest scene first (`RENDER_SLOTS`, default 3 at once); a learner's answer, recap or re-explanation never waits. On a throttling 12-thread laptop, one render at a time won clip benchmarks but lost in a real course, so tune it on the deployment machine. Node renders frames on several threads (`RENDER_THREADS`) and streams raw RGBA, in order, over TCP into ffmpeg (Windows pipes are too slow); every frame is a pure function of time, so threaded output is byte-identical to single-threaded. A 30 s illustrated scene renders in about 20 s on a 12-core machine. The narration is mixed with a ducked procedural ambient bed. The encode is H.264 Main without B-frames plus AAC, fragmented MP4, with **a keyframe and fragment boundary at every sentence start**.

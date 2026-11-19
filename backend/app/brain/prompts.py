@@ -15,6 +15,8 @@ TUTOR_PERSONA = (
 # ───────────────────────────── schemas ─────────────────────────────
 
 CUE = {"type": "array", "items": {"type": "integer"}, "description": "[sentence_index, word_index] (0-based)"}
+# what a scene can be built on: a set or system drawn by the renderer, or a stage of library pictures ("props")
+SET_CHOICES = kit.SETS + kit.SYSTEMS + ["props"]
 
 PLAN_SCHEMA = {
     "type": "object",
@@ -39,8 +41,11 @@ PLAN_SCHEMA = {
                                 "key_points": {"type": "array", "items": {"type": "string"}},
                                 "visual_idea": {"type": "string"},
                                 "target_seconds": {"type": "integer"},
+                                "central_image": {"type": "string", "description": "the ONE picture the scene is built on, in a sentence"},
+                                "set": {"type": "string", "enum": SET_CHOICES},
+                                "opens_with": {"type": "string", "description": "usually empty; rarely, the image from the end of the previous scene this one opens on"},
                             },
-                            "required": ["title", "objective", "key_points", "visual_idea", "target_seconds"],
+                            "required": ["title", "objective", "key_points", "visual_idea", "target_seconds", "central_image", "set", "opens_with"],
                             "additionalProperties": False,
                         },
                     },
@@ -79,8 +84,29 @@ PLAN_SCHEMA = {
 _p = PLAN_SCHEMA["properties"]
 PLAN_SCHEMA["properties"] = {"title": _p["title"], "summary": _p["summary"], "level": _p["level"],
                              "audience": {"type": "string", "enum": ["young_child", "child", "teen", "adult", "professional"]},
-                             "style": {"type": "string", "enum": list(kit.STYLE_GUIDE)}, "lessons": _p["lessons"]}
-PLAN_SCHEMA["required"] = ["title", "summary", "level", "audience", "style", "lessons"]
+                             "style": {"type": "string", "enum": list(kit.STYLE_GUIDE)},
+                             "design_read": {"type": "string", "description": "one line: how this course should look, feel and move, and why"},
+                             "lessons": _p["lessons"]}
+PLAN_SCHEMA["required"] = ["title", "summary", "level", "audience", "style", "design_read", "lessons"]
+
+SHOT = {
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "shot": {"type": "string", "enum": ["wide", "medium", "close", "detail"]},
+                "on": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "what the shot is about: an element id or id.anchor"},
+                "move": {"type": "string", "enum": ["cut", "push", "pull", "pan", "follow", "whip", "through", "hold"]},
+                "dur": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "seconds the move takes (null = the move's own pace)"},
+                "shake": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "px of camera shake on an impact, or null"},
+            },
+            "required": ["shot", "on", "move", "dur", "shake"],
+            "additionalProperties": False,
+        },
+        {"type": "null"},
+    ]
+}
+
 
 def scene_schema(answer_mode: bool = False) -> dict:
     types = kit.component_names(include_internal=False) + (["FrozenFrame"] if answer_mode else [])
@@ -88,6 +114,22 @@ def scene_schema(answer_mode: bool = False) -> dict:
     "type": "object",
     "properties": {
         "sentences": {"type": "array", "items": {"type": "string"}},
+        "beats": {
+            "type": "array",
+            "description": "3-6 beats, written BEFORE the elements: the scene's plan",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "cue": CUE,
+                    "change": {"type": "string", "description": "what changes in the picture on this word (one thing)"},
+                    "lead": {"type": "string", "description": "id of the element that makes the main move"},
+                    "shot": SHOT,
+                    "hold": {"type": "boolean", "description": "true = a rest: no new element and no camera move for a while"},
+                },
+                "required": ["cue", "change", "lead", "shot", "hold"],
+                "additionalProperties": False,
+            },
+        },
         "elements": {
             "type": "array",
             "items": {
@@ -105,22 +147,8 @@ def scene_schema(answer_mode: bool = False) -> dict:
                 "additionalProperties": False,
             },
         },
-        "camera": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "cue": CUE, "x": {"type": "number"}, "y": {"type": "number"}, "zoom": {"type": "number"},
-                    "dur": {"type": "number", "description": "seconds the move takes, starting at the cue"},
-                    "focus": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "depth plane in focus, -1..1"},
-                    "dof": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "depth-of-field blur, 0 (none) to 8"},
-                },
-                "required": ["cue", "x", "y", "zoom", "dur", "focus", "dof"],
-                "additionalProperties": False,
-            },
-        },
     },
-    "required": ["sentences", "elements", "camera"],
+    "required": ["sentences", "beats", "elements"],
     "additionalProperties": False,
     }
 
@@ -175,6 +203,18 @@ Rules:
 - `audience`: who is learning, from their answers and goal: young_child (≈5–7), child (≈8–11), teen,
   adult, or professional (e.g. medical, engineering). Children get a picture-book style with a guide
   character, simpler words and shorter scenes (20–45 s); professionals get precise terminology and mechanism.
+- `design_read`: one line on how this course should look, feel and move, and why (e.g. "calm and precise, one
+  continuous cutaway of the synapse; the camera moves only to follow the signal"). Not just adjectives.
+- Every scene also gets a `central_image` (the ONE picture the whole scene is built on, which changes but is never
+  replaced) and a `set`: what the renderer draws it with. Prefer a set when one fits: Synapse (nerve signals),
+  Cell (organelles, protein making), Molecule/Reaction (chemistry), Orbits (planets, moons, days and years),
+  Machine (gears, levers, pulleys, engines), Circuit (electricity), Timeline (history, sequences of dates),
+  WorldMap (geography, empires, trade, migration), TokenGrid (proportions, "1 in N", populations), Bars
+  (comparisons), Contraption (an abstract process: input, machine, output), Landscape (weather, water, land),
+  Nephron/Body/Epithelium (physiology). Otherwise "props" (a stage of 2-4 library pictures).
+  The `visual_idea` then says what MOVES in that image, in order.
+- `opens_with` is "" for almost every scene. Only when one scene's last image is a natural door into the next (a
+  push into the cell that the next scene explores) write that image there. Never chain every scene.
 - `style`: the visual style that suits this subject and learner best:
 {chr(10).join(f"  · {k}: {v}" for k, v in kit.STYLE_GUIDE.items())}
   For children choose storybook-v1 or papercut-v1 (or watercolor-v1 for nature topics). Pick by what the lessons
@@ -186,80 +226,52 @@ Rules:
 - Write everything in the requested language."""
 
 
-RICHNESS = """# Make it rich: a world to watch, not a diagram on paper
-A learner should want to keep watching even with the sound off. Build every scene in four layers:
-1. **A place.** The idea happens somewhere. Open in it: a Landscape for weather, water, geology, ecology, light and sky;
-   a Body, Nephron or Epithelium for physiology; a stage of library pictures for everything else (a kitchen of props
-   for chemistry, a street of people and cars for statistics, planets and a rocket for physics). Abstract maths still
-   gets concrete things to count, weigh or move (coins, balls, people, books). Never leave the learner on blank paper
-   for more than the first second.
-   A Landscape already draws its own sun, clouds and trees: to place your own sun Prop, set the Landscape's `sun` to
-   "none" so there is only one.
-2. **A cast of pictures.** Use 4 or more DIFFERENT illustrations from the prop catalog, each one standing for a real
-   thing in the explanation, and scale them so the subject fills the frame. Repeat a picture (many drops, many people)
-   when quantity is the point.
-3. **Things happening.** Every key point is acted out, not stated: something flows, grows, splits, travels, turns or
-   changes state on the word that names it (Particles, Tube, Journey, `motion`, `stateKeys`, `loop`, Guide `poses`).
-   Aim for 5 or more moving elements per scene, each with a physical cause.
-4. **Direction.** 4–6 camera shots on the words they serve, `depth` on the backdrop (far) and the subject (0), and
-   short Labels pointing at the drawing. Words on screen are labels; a Callout or BulletReveal only for the takeaway.
-
-Pace: something new enters about every 2.5 seconds (the scene request gives the exact counts). Enter elements on the
-words that name them and retire ones that are done with `until_cue`, so the frame keeps changing without clutter.
-
-References must exist: `target`, `from`, `to`, `path` points and `pointAt` may only name ids you defined earlier in
-this scene or anchors listed for that component or prop kind. Otherwise use [x, y] coordinates.
-
-Before you answer, check: Is there a place? 4+ different pictures? 5+ things moving, each caused? A new element every
-~2.5 s? 4+ shots? Every reference defined? If any answer is no, add to the scene until it is yes."""
-
-
-def richness_rule(seconds: float) -> str:
-    """Concrete counts for this scene's length (the system prompt explains why)."""
+def direction_rule(seconds: float) -> str:
+    """Concrete shape for this scene's length (the direction brief explains why)."""
     s = max(15.0, float(seconds or 45))
-    return (f"Richness for {int(s)} s: at least {max(8, round(s / 2.5))} elements in total, at least 4 different prop kinds, "
-            f"at least {max(3, round(s / 9))} moving elements, {max(3, min(6, round(s / 9)))} or more camera shots, a place "
-            "(see \"Make it rich\"), and at most 2 blocks of text besides labels.")
+    lo, hi = (3, 4) if s < 30 else (4, 5) if s < 55 else (4, 6)
+    return (f"Direction for {int(s)} s: {lo}-{hi} beats of uneven length on one set; at least one hold after the key reveal; "
+            "2-5 shots with different framings; at most 2 text blocks besides labels; nothing new in the last 1.5 s.")
 
 
-def scene_system(answer_mode: bool = False, kit_id: str = "") -> str:
+def scene_system(answer_mode: bool = False, kit_id: str = "", sets: list[str] | None = None) -> str:
     kit_id = kit_id if kit_id in kit.KITS else kit.DEFAULT_KIT
-    golden = "\n".join(json.dumps(g, ensure_ascii=False) for g in kit.golden_scenes(kit_id))
+    golden = "\n".join(json.dumps(g, ensure_ascii=False) for g in kit.golden_scenes(kit_id, answer_mode=answer_mode))
     return f"""{TUTOR_PERSONA}
 
-You are the SCENE WRITER. You write the narration for one scene AND its visuals as a timeline of Style Kit
-components. A deterministic renderer draws and animates your timeline on a 1280×720 canvas; narration is
-synthesised sentence by sentence and every element is timed to a word of that narration. Learners must be
-able to SEE the idea happen: illustrate and animate it, don't just write it.
+You are the SCENE WRITER and its DIRECTOR. You write the narration for one scene AND direct its visuals as a timeline
+of Style Kit components. A deterministic renderer draws and animates your timeline on a 1280x720 canvas; narration is
+synthesised sentence by sentence and every element is timed to a word of that narration. Learners must SEE the idea
+happen, in a picture that looks designed and shot, not assembled.
 
-# Style Kit: {kit.KITS[kit_id]}
+# The look: {kit.KITS[kit_id]}
 {kit.skill_md(kit_id)}
 
+{kit.direction_md()}
+
 # Components
-{kit.component_reference(answer_mode=answer_mode)}
+{kit.component_reference(answer_mode=answer_mode, kit_id=kit_id, sets=sets)}
 
 # Output format
 - `sentences`: the narration, one spoken sentence per item, conversational and clear. Keep strictly within the
   word budget you are given: the video is exactly as long as its narration. Speak to the learner ("you").
-  No markdown, no stage directions, no emojis.
-  Spell maths for the ear ("n minus one"), while the board shows symbols (n − 1).
-- `elements`: each has a unique `id`, a `type`, a `cue` = [sentence_index, word_index] (0-based; words are
-  the sentence split on spaces) for when its entrance begins, optional `until_cue` for when it fades out
-  (null = stays), optional `dur` (null = component default), and `props_json`: the props as a JSON object
-  string, exactly matching the component's props (no extra keys).
-  Timing inside props: BulletReveal may take `"cues": [[s,w], ...]` (one per item) instead of `times`;
-  items of NumberLine `marks`, AxesPlot `series`, and `motion`, `poses` (Guide), `flows` (Nephron) and
-  `stateKeys` (Prop) take `"cue": [s,w]` instead of `at`.
-- `camera`: the shots. Each key STARTS a camera move at its cue and lasts `dur` seconds: x,y = the logical point that
-  ends up at the frame centre, zoom 1 = the whole frame (wide), 1.3–1.6 = medium, 1.8–2.4 = close; `focus` = the depth
-  plane kept sharp and `dof` = how much the other planes blur (null = unchanged). See "Direct it like a film".
-- Reference other elements in `target`/`from`/`to`/`path`/`pointAt` by id, or by "id.anchor" to hit a named
-  point of an illustration (e.g. "land.seaSurface", "n.glomerulus", "heart1.aorta").
+  No markdown, no stage directions, no emojis. Spell maths for the ear ("n minus one"), while the board shows symbols.
+- `beats`: write these FIRST. 3-6 beats, each with the `cue` [sentence, word] of the word that names its change, the
+  `change` in a few words, the `lead` element id, a `shot` (or null to keep the framing) and `hold` (true for a rest).
+  Shots: `shot` wide | medium | close | detail, `on` an element id or "id.anchor", `move` cut | push | pull | pan |
+  follow | whip | through | hold. The engine frames every shot itself: never write coordinates for the camera.
+- `elements`: each has a unique `id`, a `type`, a `cue` (0-based [sentence, word]; words are the sentence split on
+  spaces) for when its entrance begins, `until_cue` for when it fades out (null = stays), `dur` (null = default), and
+  `props_json`: the props as a JSON object string, exactly matching the component's props (no extra keys).
+  Any time inside props is written as a cue: list items (`stages`, `labels`, `events`, `regions`, `routes`, `pins`,
+  `groups`, `items`, `motion`, `poses`, `flows`, `stateKeys`, ...) take `"cue": [s,w]` instead of `at`, a nested
+  object likewise (`flood`, `highlight`), and a time prop named fooAt is written fooCue (e.g. Stamp `strikeCue`).
+  BulletReveal takes `"cues": [[s,w], ...]`.
+- Reference other elements in `target`/`from`/`to`/`path`/`pointAt`/`on` by id, or by "id.anchor" to hit a named
+  point of a set or picture (e.g. "syn.cleft", "land.seaSurface", "map.Rome"). Only ids you defined and listed anchors.
 
-# Golden scenes (approved references; absolute-time format, shown for layout and pacing)
-{golden}
-
-{RICHNESS}"""
+# Example scenes in this look (the format you write, with props shown as objects for readability)
+{golden}"""
 
 
 def tutor_system() -> str:
@@ -293,14 +305,15 @@ def from_wire(raw: dict) -> dict:
         except (json.JSONDecodeError, ValueError) as e:
             props = {"__invalid__": f"props_json could not be parsed: {e}"}
         elements.append({k: v for k, v in el.items() if k != "props_json"} | {"props": props})
-    return {"sentences": [s.strip() for s in raw.get("sentences", []) if s.strip()], "elements": elements, "camera": raw.get("camera", [])}
+    return {"sentences": [s.strip() for s in raw.get("sentences", []) if s.strip()], "beats": raw.get("beats", []) or [], "elements": elements,
+            "camera": raw.get("camera", []) or []}
 
 
 def to_wire(draft: dict) -> dict:
     return {
         "sentences": draft["sentences"],
         "elements": [{k: v for k, v in el.items() if k != "props"} | {"props_json": json.dumps(el.get("props", {}), ensure_ascii=False)} for el in draft["elements"]],
-        "camera": draft.get("camera", []),
+        "beats": draft.get("beats", []),
     }
 
 
@@ -322,14 +335,29 @@ Scene objective: {ctx.scene_objective}
 Key points to teach (all must be covered, accurately):
 {chr(10).join('- ' + k for k in ctx.key_points)}
 Visual idea from the planner: {ctx.visual_idea}
+Central image: {ctx.central_image or ctx.visual_idea}
+Built on: {ctx.set_name or "your choice of set or library pictures"}
+How the course should feel: {ctx.design_read or "(not given)"}
+{opening_note(ctx)}
 {length_rule(ctx.target_seconds, ctx.kit)}
-{richness_rule(ctx.target_seconds)}
+{direction_rule(ctx.target_seconds)}
 Previous scene ended with: {ctx.previous_summary or '(this is the first scene)'}
 Next scene: {ctx.next_title or '(none — wrap this lesson up)'}
 {"Open with a TitleCard for the lesson title, faded out before the content." if first else "Do not use a TitleCard; open straight into the idea with a Heading."}
 {mode_note.strip()}
 
 Write the scene."""
+
+
+def opening_note(ctx: SceneContext) -> str:
+    if ctx.opens_with:
+        return f"Open on this image, where the previous scene ended: {ctx.opens_with}"
+    return "Open in a fresh image of your own."
+
+
+def scene_sets(ctx: SceneContext) -> list[str] | None:
+    """The sets whose docs this scene's prompt carries (all of them when the planner named none)."""
+    return [ctx.set_name] if ctx.set_name and ctx.set_name != "props" else None
 
 
 def length_rule(seconds: float, kit_id: str) -> str:

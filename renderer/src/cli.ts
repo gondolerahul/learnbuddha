@@ -11,7 +11,7 @@ import net from "node:net";
 import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { COMPONENTS, KITS, kitTokens, lintScene, renderScene, visibleText } from "./index";
+import { COMPONENTS, KITS, kitTokens, lintScene, renderScene, RETIRED_KITS, visibleText } from "./index";
 import { PROPS } from "./art/props";
 import { fixScene } from "./autofix";
 import type { Ctx, SceneSpec } from "./types";
@@ -27,10 +27,28 @@ function registerFonts() {
     if (!dir) throw new Error(`font package @fontsource/${pkg} not installed`);
     for (const f of files) GlobalFonts.registerFromPath(path.join(dir, f), alias);
   };
-  reg("kalam", ["kalam-latin-400-normal.woff2", "kalam-latin-ext-400-normal.woff2", "kalam-latin-700-normal.woff2", "kalam-latin-ext-700-normal.woff2"], "LB Hand");
-  reg("source-serif-4", ["source-serif-4-latin-400-normal.woff2", "source-serif-4-latin-ext-400-normal.woff2", "source-serif-4-greek-400-normal.woff2", "source-serif-4-latin-600-normal.woff2"], "LB Serif");
-  reg("noto-sans-math", ["noto-sans-math-latin-400-normal.woff2"], "LB Math");
+  for (const [pkg, files, alias] of FONT_FACES) reg(pkg, files, alias);
 }
+
+/** Every face a kit may name (all SIL Open Font License, from @fontsource). Mirrored in frontend/src/lib/fonts.ts. */
+export const FONT_FACES: [string, string[], string][] = [
+  ["kalam", ["kalam-latin-400-normal.woff2", "kalam-latin-ext-400-normal.woff2", "kalam-latin-700-normal.woff2", "kalam-latin-ext-700-normal.woff2"], "LB Hand"],
+  ["source-serif-4", ["source-serif-4-latin-400-normal.woff2", "source-serif-4-latin-ext-400-normal.woff2", "source-serif-4-greek-400-normal.woff2", "source-serif-4-latin-600-normal.woff2"], "LB Serif"],
+  ["noto-sans-math", ["noto-sans-math-latin-400-normal.woff2"], "LB Math"],
+  ["caveat", ["caveat-latin-400-normal.woff2", "caveat-latin-600-normal.woff2", "caveat-latin-700-normal.woff2"], "LB Caveat"],
+  ["lora", ["lora-latin-400-normal.woff2", "lora-latin-600-normal.woff2", "lora-latin-700-normal.woff2"], "LB Lora"],
+  ["lora", ["lora-latin-400-italic.woff2", "lora-latin-600-italic.woff2"], "LB Lora Italic"],
+  ["poppins", ["poppins-latin-400-normal.woff2", "poppins-latin-500-normal.woff2", "poppins-latin-600-normal.woff2", "poppins-latin-700-normal.woff2", "poppins-latin-800-normal.woff2"], "LB Poppins"],
+  ["fredoka", ["fredoka-latin-400-normal.woff2", "fredoka-latin-500-normal.woff2", "fredoka-latin-600-normal.woff2", "fredoka-latin-700-normal.woff2"], "LB Fredoka"],
+  ["space-grotesk", ["space-grotesk-latin-400-normal.woff2", "space-grotesk-latin-500-normal.woff2", "space-grotesk-latin-700-normal.woff2"], "LB Grotesk"],
+  ["jetbrains-mono", ["jetbrains-mono-latin-400-normal.woff2", "jetbrains-mono-latin-700-normal.woff2"], "LB Mono"],
+  ["fredericka-the-great", ["fredericka-the-great-latin-400-normal.woff2"], "LB Chalk"],
+  ["patrick-hand", ["patrick-hand-latin-400-normal.woff2"], "LB Patrick"],
+  ["architects-daughter", ["architects-daughter-latin-400-normal.woff2"], "LB Architect"],
+  ["archivo-black", ["archivo-black-latin-400-normal.woff2"], "LB Archivo"],
+  ["courier-prime", ["courier-prime-latin-400-normal.woff2", "courier-prime-latin-700-normal.woff2"], "LB Courier"],
+  ["inter", ["inter-latin-400-normal.woff2", "inter-latin-500-normal.woff2", "inter-latin-600-normal.woff2", "inter-latin-700-normal.woff2"], "LB Inter"],
+];
 
 function args(argv: string[]) {
   const out: Record<string, string> = {};
@@ -85,7 +103,7 @@ async function renderWorker() {
   const tokens = kitTokens(d.spec.kit);
   const canvas = createCanvas(d.width, d.height);
   const ctx = canvas.getContext("2d") as unknown as Ctx;
-  const opts = { tokens, makeCanvas, width: d.width, height: d.height };
+  const opts = { tokens, makeCanvas, width: d.width, height: d.height, fps: d.fps };
   let credits = AHEAD;
   let wake: (() => void) | null = null;
   parentPort!.on("message", (m) => {
@@ -210,6 +228,40 @@ async function main() {
     process.stdout.write(JSON.stringify(res) + "\n");
     return;
   }
+  if (cmd === "sheet") {
+    // A contact sheet for the style lab: one row per kit, one column per moment.
+    //   sheet --spec f.json [--kits a,b] [--times 1,4,9] [--scale 0.3] --out sheet.png
+    const kits = (a.kits ? a.kits.split(",") : Object.keys(KITS).filter((k) => !RETIRED_KITS.has(k) && k !== "zen-board-hc-v1"));
+    const times = a.times ? a.times.split(",").map(Number) : [0.15, 0.35, 0.55, 0.75, 0.95].map((f) => +(spec.duration * f).toFixed(2));
+    const scale = parseFloat(a.scale ?? "0.3");
+    const cw = Math.round(1280 * scale), ch = Math.round(720 * scale), gap = 4, head = 22;
+    const sheet = createCanvas(times.length * (cw + gap) + gap, kits.length * (ch + gap + head) + gap);
+    const sg = sheet.getContext("2d") as unknown as Ctx;
+    sg.fillStyle = "#FFFFFF";
+    sg.fillRect(0, 0, sheet.width, sheet.height);
+    const full = createCanvas(1280, 720);
+    const fg = full.getContext("2d") as unknown as Ctx;
+    kits.forEach((k, row) => {
+      const tk = kitTokens(k);
+      const s = JSON.parse(JSON.stringify({ ...spec, kit: k }));
+      const y0 = gap + row * (ch + gap + head);
+      sg.fillStyle = "#222";
+      sg.font = "600 14px sans-serif";
+      sg.fillText(`${tk.name}  (${k})`, gap + 2, y0 + 15);
+      times.forEach((t, col) => {
+        renderScene(fg, s, t, { tokens: tk, makeCanvas, width: 1280, height: 720, fps: 24 });
+        fg.getImageData(0, 0, 1, 1); // force the deferred draw before the canvas is reused
+        sg.drawImage(full as any, gap + col * (cw + gap), y0 + head, cw, ch);
+        sg.fillStyle = "rgba(0,0,0,0.55)";
+        sg.fillRect(gap + col * (cw + gap), y0 + head, 44, 16);
+        sg.fillStyle = "#fff";
+        sg.font = "11px sans-serif";
+        sg.fillText(`${t.toFixed(1)}s`, gap + col * (cw + gap) + 4, y0 + head + 12);
+      });
+    });
+    fs.writeFileSync(a.out ?? "sheet.png", a.out?.endsWith(".jpg") ? sheet.toBuffer("image/jpeg", 86) : sheet.toBuffer("image/png"));
+    return;
+  }
   if (cmd === "visible") {
     process.stdout.write(JSON.stringify(visibleText(spec, parseFloat(a.t ?? "0"))) + "\n");
     return;
@@ -243,7 +295,7 @@ async function main() {
       await renderParallel(spec, fps, width, height, from, to, threads, sink, !!a.progress);
     } else {
       for (let i = from; i < to; i++) {
-        renderScene(ctx, spec, i / fps, opts);
+        renderScene(ctx, spec, i / fps, { ...opts, fps });
         // Opaque frames, so premultiplied RGBA == straight RGBA; data() avoids an unpremultiply copy.
         await sink(canvas.data());
         if (a.progress && i % 15 === 0) process.stderr.write(`progress ${((i - from) / Math.max(1, to - from)).toFixed(3)}\n`);

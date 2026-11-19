@@ -1,0 +1,171 @@
+{
+ "title": "Crossing the synapse",
+ "kit": "schematic-v1",
+ "sentences": [
+  "An action potential reaches the axon terminal.",
+  "Voltage-gated calcium channels open, and calcium rushes in.",
+  "Vesicles fuse with the membrane and release neurotransmitter into the cleft.",
+  "It binds receptors on the next neuron, and ions flood through."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the spike arrives",
+   "lead": "syn",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "channels open",
+   "lead": "syn",
+   "shot": {
+    "shot": "medium",
+    "on": "syn.channel",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "release into the cleft",
+   "lead": "syn",
+   "shot": {
+    "shot": "medium",
+    "on": "syn.cleft",
+    "move": "pan",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "receptors open, ions flow",
+   "lead": "syn",
+   "shot": {
+    "shot": "close",
+    "on": "syn.receptor",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Crossing the synapse"
+   },
+   "fixed": true
+  },
+  {
+   "id": "syn",
+   "type": "Synapse",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "stages": [
+     {
+      "name": "spike",
+      "cue": [
+       0,
+       1
+      ]
+     },
+     {
+      "name": "calcium",
+      "cue": [
+       1,
+       3
+      ]
+     },
+     {
+      "name": "release",
+      "cue": [
+       2,
+       1
+      ]
+     },
+     {
+      "name": "bind",
+      "cue": [
+       3,
+       1
+      ]
+     },
+     {
+      "name": "flow",
+      "cue": [
+       3,
+       8
+      ]
+     }
+    ],
+    "labels": [
+     {
+      "part": "terminal",
+      "cue": [
+       0,
+       6
+      ]
+     },
+     {
+      "part": "channel",
+      "cue": [
+       1,
+       2
+      ]
+     },
+     {
+      "part": "cleft",
+      "cue": [
+       2,
+       10
+      ]
+     },
+     {
+      "part": "receptor",
+      "cue": [
+       3,
+       2
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

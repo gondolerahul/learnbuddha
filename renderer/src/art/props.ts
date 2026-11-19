@@ -37,34 +37,14 @@ function rays(A: Art, n: number, r0: number, r1: number, rot: number, col: strin
 function puffs(A: Art, cs: [number, number, number][], fill: string, shade: string) {
   const { ctx } = A;
   ctx.save();
-  if (A.style === "papercut") {
-    // cut paper: no ink line, a crisp shadow on the layer below
-    ctx.fillStyle = "rgba(45,28,12,0.28)";
-    for (const [x, y, r] of cs) {
-      ctx.beginPath();
-      ctx.arc(x + 2.5 * A.u, y + 4 * A.u, r, 0, TAU);
-      ctx.fill();
-    }
-  } else {
-    ctx.strokeStyle = A.outline;
-    ctx.lineWidth = A.lw * 2 * A.u;
-    for (const [x, y, r] of cs) {
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, TAU);
-      ctx.stroke();
-    }
+  const lined = !["papercut", "flat", "riso", "watercolor"].includes(A.style);
+  if (lined) {
+    // the outline of the union: every puff outlined wide first, then the fills cover the inner strokes
+    for (const [x, y, r] of cs) circle(A, x, y, r, null, { lw: A.lw * 2 });
   }
-  ctx.fillStyle = A.c(fill);
-  for (const [x, y, r] of cs) {
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, TAU);
-    ctx.fill();
-  }
-  ctx.globalAlpha *= 0.55;
-  ctx.fillStyle = A.c(shade);
-  ctx.beginPath();
-  ctx.ellipse(0, 22, 58, 9, 0, 0, TAU);
-  ctx.fill();
+  // papercut puffs cast their own crisp shadows as they are filled (paintPts)
+  for (const [x, y, r] of cs) circle(A, x, y, r, fill, { stroke: false });
+  ellipse(A, 0, 22, 58, 9, shade, 0, { stroke: false, alpha: 0.55 });
   ctx.restore();
 }
 

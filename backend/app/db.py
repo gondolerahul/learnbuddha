@@ -34,6 +34,8 @@ def init_db() -> None:
 
     with engine().begin() as conn:
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS brain varchar(32) DEFAULT ''"))
+        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS direction jsonb DEFAULT '{}'::jsonb"))
+        conn.execute(text("ALTER TABLE scenes ADD COLUMN IF NOT EXISTS direction jsonb DEFAULT '{}'::jsonb"))
 
 
 @contextmanager

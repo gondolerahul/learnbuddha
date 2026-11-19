@@ -1,0 +1,196 @@
+{
+ "title": "The Silk Road",
+ "kit": "zen-board-v1",
+ "sentences": [
+  "Two thousand years ago, silk left Xi'an on the backs of camels.",
+  "It crossed deserts and mountains to Samarkand, a city of markets.",
+  "From there, caravans pushed west to Baghdad, then on to Constantinople.",
+  "Few traders walked the whole road; goods changed hands at every city.",
+  "So ideas, foods and even diseases travelled along with the silk."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the map draws in, Xi'an is pinned",
+   "lead": "map",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    1
+   ],
+   "change": "the route draws west to Samarkand",
+   "lead": "map",
+   "shot": {
+    "shot": "medium",
+    "on": [
+     "map.xi'an",
+     "map.samarkand"
+    ],
+    "move": "follow",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "routes reach Baghdad and Constantinople",
+   "lead": "map",
+   "shot": {
+    "shot": "wide",
+    "on": "map",
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "a rest on the whole road",
+   "lead": "map",
+   "shot": null,
+   "hold": true
+  },
+  {
+   "cue": [
+    4,
+    0
+   ],
+   "change": "the takeaway",
+   "lead": "take",
+   "shot": null,
+   "hold": false
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "The Silk Road"
+   },
+   "fixed": true
+  },
+  {
+   "id": "map",
+   "type": "WorldMap",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "view": [
+     20,
+     12,
+     125,
+     55
+    ],
+    "pins": [
+     {
+      "place": "xi'an",
+      "label": "Xi'an",
+      "cue": [
+       0,
+       6
+      ]
+     },
+     {
+      "place": "samarkand",
+      "label": "Samarkand",
+      "cue": [
+       1,
+       6
+      ]
+     },
+     {
+      "place": "baghdad",
+      "label": "Baghdad",
+      "cue": [
+       2,
+       6
+      ]
+     },
+     {
+      "place": "constantinople",
+      "label": "Constantinople",
+      "cue": [
+       2,
+       10
+      ]
+     }
+    ],
+    "routes": [
+     {
+      "from": "xi'an",
+      "to": "samarkand",
+      "cue": [
+       1,
+       1
+      ],
+      "dur": 2.4
+     },
+     {
+      "from": "samarkand",
+      "to": "baghdad",
+      "cue": [
+       2,
+       2
+      ]
+     },
+     {
+      "from": "baghdad",
+      "to": "constantinople",
+      "cue": [
+       2,
+       7
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "take",
+   "type": "Callout",
+   "cue": [
+    4,
+    1
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Goods, ideas and germs moved city to city",
+    "x": 820,
+    "y": 560,
+    "w": 380,
+    "tone": "accent"
+   }
+  }
+ ]
+}

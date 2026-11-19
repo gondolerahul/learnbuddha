@@ -108,7 +108,7 @@ class ClaudeBrain:
         return self._json(prompts.planner_system(), user, prompts.PLAN_SCHEMA, effort="high", op="plan")
 
     def draft_scene(self, ctx: SceneContext) -> dict:
-        return self._scene_call(prompts.scene_system(kit_id=ctx.kit), _scene_user(ctx), effort=get_settings().urgent_thinking if ctx.urgent else get_settings().scene_thinking, op="scene_script")
+        return self._scene_call(prompts.scene_system(kit_id=ctx.kit, sets=prompts.scene_sets(ctx)), _scene_user(ctx), effort=get_settings().urgent_thinking if ctx.urgent else get_settings().scene_thinking, op="scene_script")
 
     def draft_answer(self, ctx: AnswerContext) -> dict:
         return self._scene_call(prompts.scene_system(answer_mode=True, kit_id=ctx.kit), _answer_user(ctx), effort=get_settings().urgent_thinking, answer_mode=True, op="answer_script")

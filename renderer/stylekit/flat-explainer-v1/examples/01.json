@@ -1,0 +1,188 @@
+{
+ "title": "Compound interest",
+ "kit": "flat-explainer-v1",
+ "sentences": [
+  "Put one hundred dollars into an account that pays ten percent a year.",
+  "After a year you have one hundred and ten.",
+  "Next year the ten percent is paid on the interest too.",
+  "Each year the coins that come out are a little bigger than the last.",
+  "That is compound interest: growth that grows."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "the machine appears, the first coin goes in",
+   "lead": "machine",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "the counter ticks to 110",
+   "lead": "count",
+   "shot": {
+    "shot": "medium",
+    "on": "machine.output",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "interest goes back in",
+   "lead": "machine",
+   "shot": {
+    "shot": "wide",
+    "on": "machine",
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "bigger coins pile up",
+   "lead": "machine",
+   "shot": null,
+   "hold": true
+  },
+  {
+   "cue": [
+    4,
+    0
+   ],
+   "change": "the takeaway",
+   "lead": "take",
+   "shot": null,
+   "hold": false
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Compound interest"
+   },
+   "fixed": true
+  },
+  {
+   "id": "machine",
+   "type": "Contraption",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "input": "coin",
+    "output": "coin",
+    "count": 5,
+    "every": 2.2,
+    "grow": true,
+    "label": "10% a year",
+    "inputLabel": "$100 in",
+    "outputLabel": "Grows each year",
+    "stages": [
+     {
+      "name": "feed",
+      "cue": [
+       0,
+       1
+      ]
+     }
+    ],
+    "labels": [
+     {
+      "part": "input",
+      "cue": [
+       0,
+       2
+      ]
+     },
+     {
+      "part": "machine",
+      "cue": [
+       0,
+       9
+      ]
+     },
+     {
+      "part": "output",
+      "cue": [
+       3,
+       10
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "count",
+   "type": "Counter",
+   "cue": [
+    1,
+    0
+   ],
+   "until_cue": [
+    2,
+    0
+   ],
+   "dur": null,
+   "props": {
+    "from": 100,
+    "to": 110,
+    "prefix": "$",
+    "label": "after 1 year",
+    "x": 1040,
+    "y": 170,
+    "size": "lg"
+   }
+  },
+  {
+   "id": "take",
+   "type": "Callout",
+   "cue": [
+    4,
+    4
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Interest earns interest",
+    "x": 860,
+    "y": 170,
+    "w": 340,
+    "tone": "accent"
+   }
+  }
+ ]
+}

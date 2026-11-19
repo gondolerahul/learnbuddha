@@ -26,7 +26,7 @@ from .models import QA, Course, Lesson, Scene
 
 log = logging.getLogger("lb.pipeline")
 
-PIPELINE_VERSION = "3"  # 3: style library (11 kits) chosen by subject and learner
+PIPELINE_VERSION = "4"  # 4: v2 looks (materials, sets, named shots, beats); 3: style library (11 kits)
 RECAP_SECONDS = 4.0
 
 
@@ -87,6 +87,7 @@ def partial_first_scene(text: str) -> dict | None:
     once all of them are complete. None until then."""
     aud = re.search(r'"audience"\s*:\s*"([a-z_]+)"', text)
     sty = re.search(r'"style"\s*:\s*"([a-z0-9-]+)"', text)
+    read = re.search(r'"design_read"\s*:\s*' + _STR, text)
     i = text.find('"lessons"')
     if not (aud and sty) or i < 0:
         return None
@@ -106,7 +107,8 @@ def partial_first_scene(text: str) -> dict | None:
     if not lt:
         return None
     dec = lambda m: json.loads(f'"{m.group(1)}"') if m else ""  # noqa: E731
-    return {"audience": aud.group(1), "style": sty.group(1), "course_title": dec(ct), "lesson_title": dec(lt), "lesson_objective": dec(lo), "scene": scene}
+    return {"audience": aud.group(1), "style": sty.group(1), "design_read": dec(read), "course_title": dec(ct), "lesson_title": dec(lt),
+            "lesson_objective": dec(lo), "scene": scene}
 
 
 def _start_first_scene(course_id: str, early: dict) -> tuple[str, str]:
@@ -117,11 +119,13 @@ def _start_first_scene(course_id: str, early: dict) -> tuple[str, str]:
         c = db.get(Course, course_id)
         c.kit = kit.choose_kit(c.kit, early["audience"], early["style"])
         c.title = early["course_title"] or c.topic
+        c.direction = {"design_read": early.get("design_read", "")}
         lesson = Lesson(course_id=c.id, idx=0.0, title=early["lesson_title"], objective=early["lesson_objective"], checkpoint={"questions": []})
         db.add(lesson)
         db.flush()
         sc = Scene(course_id=c.id, lesson_id=lesson.id, idx=0.0, kind="lesson", title=S["title"], objective=S.get("objective", ""),
-                   key_points=S.get("key_points", []), visual_idea=S.get("visual_idea", ""), target_seconds=int(S.get("target_seconds", 20)))
+                   key_points=S.get("key_points", []), visual_idea=S.get("visual_idea", ""), target_seconds=int(S.get("target_seconds", 20)),
+                   direction=scene_direction(S))
         sc.cache_key = scene_cache_key(c, lesson, sc)
         db.add(sc)
         db.flush()
@@ -161,6 +165,7 @@ def plan_course(course_id: str) -> None:
         c.summary = plan.get("summary", "")
         c.level = plan.get("level", c.level)
         c.sources = plan.get("sources", [])
+        c.direction = {"design_read": plan.get("design_read", "") or (c.direction or {}).get("design_read", "")}
         order = 0
         for li, L in enumerate(plan.get("lessons", [])):
             if li == 0 and early:
@@ -182,6 +187,7 @@ def plan_course(course_id: str) -> None:
                 sc = Scene(
                     course_id=c.id, lesson_id=lesson.id, idx=float(si), kind="lesson", title=S["title"], objective=S.get("objective", ""),
                     key_points=S.get("key_points", []), visual_idea=S.get("visual_idea", ""), target_seconds=int(S.get("target_seconds", 45)),
+                    direction=scene_direction(S),
                 )
                 sc.cache_key = scene_cache_key(c, lesson, sc)
                 db.add(sc)
@@ -191,10 +197,16 @@ def plan_course(course_id: str) -> None:
         c.status = "ready"
 
 
+def scene_direction(S: dict) -> dict:
+    """The planner's direction for one scene: its central image, the set it is built on, and (rarely) a hand-off."""
+    return {k: S.get(k, "") for k in ("central_image", "set", "opens_with") if S.get(k)}
+
+
 def scene_cache_key(c: Course, lesson: Lesson, sc: Scene, extra: Any = None) -> str:
     s = get_settings()
     return sha([
         c.cache_key, resolve_brain(c.brain or None), lesson.title, lesson.objective, sc.title, sc.objective, sc.key_points, sc.visual_idea, sc.target_seconds,
+        sc.direction or {},
         c.kit, c.language, c.level, s.tts, kit.tokens(c.kit)["voice"], s.render_width, s.render_height, s.render_fps, PIPELINE_VERSION, extra,
     ])
 
@@ -248,6 +260,8 @@ def scene_context(scene_id: str) -> tuple[SceneContext, str]:
             previous_summary=prev_summary, next_title=nxt.title if nxt else "", sources=c.sources or [], mode=mode,
             misconception=sc.question or "", original_script=original, kit=c.kit,
             urgent=mode != "lesson" or (idx == 0 and (lesson is None or lesson.idx == 0)),
+            design_read=(c.direction or {}).get("design_read", ""), central_image=(sc.direction or {}).get("central_image", ""),
+            set_name=(sc.direction or {}).get("set", ""), opens_with=(sc.direction or {}).get("opens_with", "") if mode == "lesson" else "",
         )
         return ctx, c.kit
 

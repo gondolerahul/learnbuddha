@@ -1,0 +1,169 @@
+{
+ "title": "One in twelve",
+ "kit": "riso-v1",
+ "sentences": [
+  "Look at these twelve men.",
+  "On average, one of them cannot tell red from green.",
+  "That is about one in twelve men, but only one in two hundred women.",
+  "So is colour blindness rare? Not really."
+ ],
+ "beats": [
+  {
+   "cue": [
+    0,
+    0
+   ],
+   "change": "twelve figures assemble",
+   "lead": "grid",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "cut",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    1,
+    0
+   ],
+   "change": "one lights up",
+   "lead": "grid",
+   "shot": {
+    "shot": "medium",
+    "on": "grid.highlight",
+    "move": "push",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    2,
+    0
+   ],
+   "change": "the comparison",
+   "lead": "bars",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "pull",
+    "dur": null,
+    "shake": null
+   },
+   "hold": false
+  },
+  {
+   "cue": [
+    3,
+    0
+   ],
+   "change": "the claim, struck out",
+   "lead": "stamp",
+   "shot": {
+    "shot": "wide",
+    "on": null,
+    "move": "hold",
+    "dur": null,
+    "shake": 6
+   },
+   "hold": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "h",
+   "type": "Heading",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "Colour blindness"
+   },
+   "fixed": true
+  },
+  {
+   "id": "grid",
+   "type": "TokenGrid",
+   "cue": [
+    0,
+    0
+   ],
+   "until_cue": [
+    2,
+    0
+   ],
+   "dur": null,
+   "props": {
+    "n": 12,
+    "cols": 6,
+    "width": 700,
+    "height": 300,
+    "y": 330,
+    "highlight": {
+     "index": 7,
+     "cue": [
+      1,
+      2
+     ],
+     "color": "accent"
+    }
+   }
+  },
+  {
+   "id": "bars",
+   "type": "Bars",
+   "cue": [
+    2,
+    0
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "items": [
+     {
+      "label": "Men",
+      "value": 8.3,
+      "color": "accent"
+     },
+     {
+      "label": "Women",
+      "value": 0.5,
+      "color": "indigo"
+     }
+    ],
+    "unit": "%",
+    "decimals": 1,
+    "race": true,
+    "raceDur": 2.5,
+    "y": 360,
+    "height": 240
+   }
+  },
+  {
+   "id": "stamp",
+   "type": "Stamp",
+   "cue": [
+    3,
+    4
+   ],
+   "until_cue": null,
+   "dur": null,
+   "props": {
+    "text": "RARE?",
+    "x": 640,
+    "y": 520,
+    "strikeCue": [
+     3,
+     5
+    ]
+   }
+  }
+ ]
+}
