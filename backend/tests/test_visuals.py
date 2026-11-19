@@ -247,3 +247,16 @@ def test_every_music_bed_runs_in_ffmpeg():
         out = subprocess.run([s.ffmpeg_bin, "-v", "error", "-f", "lavfi", "-i", f"aevalsrc={expr}:s=48000:c=stereo:d=0.5", "-f", "null", "-"],
                              capture_output=True, text=True, timeout=60)
         assert out.returncode == 0, (pal, out.stderr[-300:])
+
+
+def test_a_bad_label_never_loses_the_whole_set():
+    timings = [{"start": 0, "end": 2, "words": [{"s": 0}, {"s": 0.5}, {"s": 1}]}, {"start": 2, "end": 4, "words": [{"s": 2}, {"s": 2.5}, {"s": 3}]}]
+    draft = {"sentences": ["a b c", "d e f"], "elements": [{"id": "syn", "type": "Synapse", "cue": [0, 0], "props": {
+        "labels": [{"part": "cleft", "cue": [0, 1], "until": None}, {"part": "vesicle", "cue": [0, 2], "until": [1, 2]}, {"part": "nope", "cue": [1, 0]}, {"part": "receptors", "cue": [1, 1]}],
+        "stages": [{"name": "spike", "cue": [0, 1]}]}}]}
+    spec = kit.resolve_cues(draft, timings, 4, "schematic-v1")
+    spec, mended = kit.repair_props(spec)
+    assert kit.validate_spec(spec) == [], kit.validate_spec(spec)
+    labels = spec["elements"][0]["props"]["labels"]
+    # an anchor name used as a label part ("receptors") becomes the part; an unknown one is dropped alone
+    assert [l["part"] for l in labels] == ["cleft", "vesicle", "receptor"] and "until" not in labels[0] and labels[1]["until"] == 3.0

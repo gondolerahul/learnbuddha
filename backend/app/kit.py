@@ -240,6 +240,13 @@ def _resolve_nested(obj: Any, timings: list[dict], default: float) -> None:
             obj["at"] = round(cue_time(timings, obj.pop("cue"), default), 3)
         for k in [k for k in obj if k.endswith("Cue") and k != "cue"]:
             obj[k[:-3] + "At"] = round(cue_time(timings, obj.pop(k), default), 3)
+        # a time written as a word cue ("until": [2, 3]) is a cue too; an empty one means "no time"
+        for k in ("at", "until"):
+            v = obj.get(k)
+            if isinstance(v, (list, tuple)) and v and all(isinstance(x, (int, float)) for x in v):
+                obj[k] = round(cue_time(timings, list(v), default), 3)
+            elif k in obj and v is None:
+                obj.pop(k)
         for v in obj.values():
             _resolve_nested(v, timings, default)
     elif isinstance(obj, list):
@@ -392,13 +399,48 @@ def repair_props(spec: dict) -> tuple[dict, list[str]]:
                 limit = e.validator_value
                 parent[key] = limit if "imum" in e.validator and not e.validator.startswith("exclusive") else (limit + 1e-3 if "Min" in e.validator else limit - 1e-3)
                 fixed.append(f"{eid}: {'/'.join(map(str, path))} clamped to {parent[key]}")
-            elif e.validator == "enum" and isinstance(key, str) and key not in (e.parent.schema.get("required", []) if e.parent else []):
+            elif e.validator == "enum" and isinstance(key, str) and len(path) < 3 and key not in (e.parent.schema.get("required", []) if e.parent else []):
+                # (a bad value inside a list item is renamed to its near miss or the item dropped, below)
                 fixed.append(f"{eid}: dropped unknown {key} {parent.pop(key, None)!r}")
+            elif e.validator == "type" and isinstance(parent, dict) and isinstance(key, str) and parent.get(key) is None                     and key not in (e.parent.schema.get("required", []) if e.parent else []):
+                parent.pop(key, None)
+                fixed.append(f"{eid}: dropped empty {'/'.join(map(str, path))}")
             elif e.validator == "additionalProperties" and isinstance(parent, dict):
                 allowed = set(e.schema.get("properties", {}))
                 for extra in [k for k in parent if k not in allowed and k not in GENERIC_PROPS]:
                     parent.pop(extra)
                     fixed.append(f"{eid}: dropped unknown prop {extra}")
+        core = {k: v for k, v in props.items() if k not in GENERIC_PROPS}
+        # a near-miss inside a list item ("vesicles", "channelRight" for the part "vesicle"/"channel") is renamed, not dropped
+        for e in vals[typ].iter_errors(core):
+            path = list(e.absolute_path)
+            if e.validator != "enum" or len(path) < 3 or not isinstance(e.instance, str):
+                continue
+            want = e.instance.lower()
+            near = [v for v in e.validator_value if isinstance(v, str) and (want.startswith(v.lower()) or v.lower().startswith(want))]
+            parent = props
+            try:
+                for k in path[:-1]:
+                    parent = parent[k]
+                if near:
+                    parent[path[-1]] = max(near, key=len)
+                    fixed.append(f"{eid}: {'/'.join(map(str, path))} {e.instance!r} -> {parent[path[-1]]!r}")
+                elif isinstance(parent, dict):
+                    parent.pop(path[-1], None)  # optional: the item keeps the rest; required: the item is dropped below
+                    fixed.append(f"{eid}: dropped unknown {'/'.join(map(str, path))} {e.instance!r}")
+            except (KeyError, IndexError, TypeError):
+                pass
+        core = {k: v for k, v in props.items() if k not in GENERIC_PROPS}
+        bad_items: dict[str, set[int]] = {}
+        why: dict[str, str] = {}
+        for e in vals[typ].iter_errors(core):
+            path = list(e.absolute_path)
+            if len(path) >= 2 and isinstance(path[0], str) and isinstance(path[1], int) and isinstance(props.get(path[0]), list):
+                bad_items.setdefault(path[0], set()).add(path[1])
+                why.setdefault(path[0], f"{'/'.join(map(str, path[1:]))}: {e.message[:120]}")
+        for key, idx in bad_items.items():
+            props[key] = [x for i, x in enumerate(props[key]) if i not in idx]
+            fixed.append(f"{eid}: dropped {len(idx)} invalid {key} item(s) ({why[key]})")
     return spec, fixed
 
 

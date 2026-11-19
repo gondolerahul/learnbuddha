@@ -18,7 +18,7 @@ from app.config import get_settings
 @pytest.fixture
 def vertex(monkeypatch):
     s = get_settings()
-    for k, v in {"google_genai_backend": "auto", "google_cloud_project": "test-project", "gemini_api_key": "", "anthropic_api_key": "", "tts_provider": "auto", "voice_provider": "auto", "brain_provider": "auto"}.items():
+    for k, v in {"google_genai_backend": "auto", "google_cloud_project": "test-project", "gemini_api_key": "", "anthropic_api_key": "", "tts_provider": "auto", "voice_provider": "auto", "brain_provider": "auto", "brain_model": "", "claude_backend": "auto", "gemini_brain_model": "gemini-4-hydrogen", "claude_model": "claude-opus-5-5"}.items():
         monkeypatch.setattr(s, k, v)
     genai_client.client.cache_clear()
     yield s
@@ -28,9 +28,11 @@ def vertex(monkeypatch):
 def test_backend_selection(monkeypatch, vertex):
     s = vertex
     assert s.google_backend == "vertex" and s.gemini_ready
-    assert s.brains == ["gemini"] and s.tts == "gemini" and s.voice == "gemini"
+    # Claude runs on Vertex AI with the same project, but Gemini stays the default
+    assert s.brains == ["gemini", "anthropic"] and s.claude_via == "vertex" and s.tts == "gemini" and s.voice == "gemini"
+    assert s.brain == "gemini"
     monkeypatch.setattr(s, "anthropic_api_key", "k")
-    assert s.brains == ["anthropic", "gemini"]
+    assert s.brains == ["anthropic", "gemini"] and s.claude_via == "api"
     monkeypatch.setattr(s, "google_cloud_project", "")
     assert s.google_backend == "none" and s.brains == ["anthropic"]
     monkeypatch.setattr(s, "gemini_api_key", "g")
@@ -116,3 +118,35 @@ def test_vertex_tts_uses_generate_content(monkeypatch, vertex):
     assert model == "gemini-3.8-flash-tts"
     assert contents[0]["parts"][0]["speech_metadata"]["style"].startswith("calm")
     assert config["speech_config"]["voice_config"]["voice"] == "Kore"
+
+
+def test_every_model_is_offered_and_courses_keep_theirs(monkeypatch, vertex):
+    import app.brain as brain_pkg
+    from app.brain import brain_options, get_brain, provider_of, resolve_brain
+    from app.pipeline import brain_model
+
+    brain_pkg._cache.clear()
+    monkeypatch.setattr(brain_pkg, "_cache", {})
+
+    opts = brain_options()
+    ids = [o["id"] for o in opts]
+    for m in ["gemini-4-hydrogen", "gemini-4-carbon", "gemini-4-neon", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]:
+        assert m in ids
+    assert [o["id"] for o in opts if o["default"]] == ["gemini-4-hydrogen"]
+    assert {o["via"] for o in opts} == {"Vertex AI"}
+    # a course stores the model; old courses stored the provider and get its default model
+    assert resolve_brain("claude-sonnet-5-5") == "claude-sonnet-5-5"
+    assert resolve_brain("gemini") == "gemini-4-hydrogen" and resolve_brain("anthropic") == "claude-opus-5-5"
+    assert resolve_brain("") == "gemini-4-hydrogen" and resolve_brain("no-such-model") == "gemini-4-hydrogen"
+    assert brain_model("gemini") == "gemini:gemini-4-hydrogen" and brain_model("claude-haiku-5-5") == "anthropic:claude-haiku-5-5"
+    assert provider_of("claude-haiku-5-5") == "anthropic"
+    monkeypatch.setattr(vertex, "brain_model", "claude-sonnet-5-5")
+    assert resolve_brain(None) == "claude-sonnet-5-5"
+    # each model gets its own brain; Claude goes through Vertex AI with the Google project
+    import anthropic
+
+    b = get_brain("claude-haiku-5-5")
+    assert b.model == "claude-haiku-5-5" and b.via == "vertex"
+    c = b.client
+    assert isinstance(c, anthropic.AnthropicVertex) and c.project_id == "test-project" and c.region == "global"
+    assert get_brain("gemini-4-neon").model == "gemini-4-neon"

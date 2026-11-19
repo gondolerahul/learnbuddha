@@ -30,7 +30,11 @@ class Settings(BaseSettings):
     # The app's own Claude endpoint. Set explicitly so an inherited ANTHROPIC_BASE_URL
     # (e.g. from a developer tool's environment) is never picked up by accident.
     anthropic_base_url: str = "https://api.anthropic.com"
-    claude_model: str = "claude-opus-5-5"
+    claude_model: str = "claude-opus-5-5"  # the default Claude model; any model in brain.MODELS can be picked per course
+    # Where Claude runs: api (ANTHROPIC_API_KEY) | vertex (Claude on Vertex AI, same project and ADC as Gemini) | auto
+    # (the API when a key is set, else Vertex when GOOGLE_CLOUD_PROJECT is set).
+    claude_backend: str = "auto"
+    claude_vertex_region: str = "global"  # global (list price) | us | eu | a region (regional endpoints cost ~10% more)
 
     # Google models run on Vertex AI (Gemini Enterprise Agent Platform) when a project is set,
     # otherwise on the Gemini Developer API with GEMINI_API_KEY.
@@ -48,6 +52,7 @@ class Settings(BaseSettings):
     gemini_live_model: str = "gemini-3.8-live"
 
     brain_provider: str = "auto"  # auto | anthropic | gemini | mock  (default brain; courses may pick another)
+    brain_model: str = ""  # the default model for new courses (an id from brain.MODELS); empty = the provider's default
     tts_provider: str = "auto"  # auto | gemini | sapi | silent
     voice_provider: str = "auto"  # auto | gemini | text
 
@@ -110,13 +115,26 @@ class Settings(BaseSettings):
         return self.google_backend != "none"
 
     @property
+    def claude_via(self) -> str:
+        """api | vertex | none: where Claude calls go."""
+        if self.claude_backend == "api":
+            return "api" if self.anthropic_api_key else "none"
+        if self.claude_backend == "vertex":
+            return "vertex" if self.google_cloud_project else "none"
+        if self.anthropic_api_key:
+            return "api"
+        return "vertex" if self.google_backend == "vertex" and self.google_cloud_project else "none"
+
+    @property
     def brains(self) -> list[str]:
-        """Brains that are configured and selectable per course."""
+        """Brain providers that are configured and selectable per course (the default provider first)."""
         out = []
         if self.anthropic_api_key:
             out.append("anthropic")
         if self.gemini_ready:
             out.append("gemini")
+        if self.claude_via == "vertex" and "anthropic" not in out:
+            out.append("anthropic")  # Claude on Vertex: offered, but Gemini stays the default
         return out or ["mock"]
 
     @property

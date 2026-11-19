@@ -140,3 +140,17 @@ def test_costs_api_and_diagnose_ref_join_the_course():
         assert r["usd_inr"] == 90 and r["events"][0]["course_title"]
         everything = c.get("/api/costs").json()
         assert everything["count"] >= 1 and any(x["course_id"] == course["id"] for x in everything["courses"])
+
+
+def test_claude_tool_answers_are_coerced_to_the_schema():
+    """Without structured outputs (a Vertex AI org policy can forbid them) a model may send nested objects as JSON text."""
+    from app.brain.claude import coerce
+    from app.brain import prompts
+
+    schema = prompts.scene_schema(False)
+    raw = {"sentences": '["One.", "Two."]', "beats": [], "elements": ['{"id": "h", "type": "Heading", "cue": [0, 0], "props_json": "{\\"text\\": \\"Hi\\"}"}', "junk"]}
+    out = coerce(raw, schema)
+    assert out["sentences"] == ["One.", "Two."]
+    assert out["elements"][0]["id"] == "h" and out["elements"][0]["props_json"] == '{"text": "Hi"}'
+    w = prompts.from_wire(out)
+    assert [e["id"] for e in w["elements"]] == ["h"] and w["elements"][0]["props"] == {"text": "Hi"}

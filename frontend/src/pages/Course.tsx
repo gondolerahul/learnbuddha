@@ -82,7 +82,10 @@ export default function CoursePage() {
       {c.status === "ready" && (
         <>
           <section className="hero">
-            <span className="muted small">{c.level} · {c.language} · ~{fmtTime(c.estimated_seconds)} of lessons · {c.brain === "anthropic" ? "Claude" : c.brain === "gemini" ? "Gemini" : "offline mock"}</span>
+            <span className="muted small">{c.level} · {c.language} · ~{fmtTime(c.estimated_seconds)} of lessons · {c.brain_label ?? c.brain}
+              {c.written_by && c.written_by.some((w) => w.id !== c.brain) && (
+                <> · written by {c.written_by.map((w) => w.label).join(" + ")}</>
+              )}</span>
             <h1>{c.title}</h1>
             <p className="lede">{c.summary}</p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
