@@ -9,6 +9,7 @@ import socket
 import struct
 import subprocess
 import threading
+import time
 import wave
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -251,13 +252,15 @@ BEDS: dict[str, tuple[list[float], str]] = {
     "night": ([55.0, 82.41, 110.0, 659.26], "(0.5+0.5*sin(2*PI*0.03*t+2.0))"),  # a deep drone with a faint high star
     "clinical": ([130.81, 196.0, 261.63], "(0.7+0.3*sin(2*PI*0.05*t))"),
     "chalk": ([87.31, 130.81, 174.61, 220.0], "(0.6+0.4*sin(2*PI*0.06*t+1.3))"),  # F major
-    "paper": ([261.63, 392.0, 523.25, 659.26], "(0.35+0.65*exp(-6*mod(t,0.517)))"),  # a music-box tick of the chord
+    "paper": ([261.63, 392.0, 523.25, 659.26], "(0.35+0.65*exp(-6*0.517*(t/0.517-floor(t/0.517))))"),  # a music-box tick of the chord
     "blueprint": ([65.41, 98.0, 130.81], "(0.6+0.4*sin(2*PI*0.07*t))"),
-    "riso": ([110.0, 130.81, 164.81, 196.0], "(0.4+0.6*exp(-5*mod(t,0.517)))"),  # lo-fi chord stabs at 116 bpm
+    "riso": ([110.0, 130.81, 164.81, 196.0], "(0.4+0.6*exp(-5*0.517*(t/0.517-floor(t/0.517))))"),  # lo-fi chord stabs at 116 bpm
 }
 
 
 def bed_expr(level: float, palette: str = "") -> str:
+    """The bed as an aevalsrc expression. It sits inside a -f lavfi input, where a comma would end the filter, so it
+    must never contain one (no mod(), hypot(), ...)."""
     freqs, env = BEDS.get(palette, ([110.0, 164.81, 220.0, 277.18], "(0.6+0.4*sin(2*PI*0.06*t+1.3))"))
     weights = [1.0, 0.6, 0.45, 0.3, 0.22]
     tones = "+".join(f"{weights[i % len(weights)]}*sin(2*PI*{f}*t)" for i, f in enumerate(freqs))
@@ -390,7 +393,18 @@ def encode_scene(
     assert node.stdin is not None
     node.stdin.write(json.dumps(spec).encode())
     node.stdin.close()
-    node.wait(timeout=1800)
+    # If ffmpeg dies (a bad filter, a full disk), the renderer would wait forever for a reader: stop it at once.
+    deadline = time.monotonic() + 1800
+    while node.poll() is None:
+        if ff.poll() is not None and ff.returncode != 0:
+            node.kill()
+            node.wait(timeout=10)
+            raise RuntimeError("ffmpeg failed: " + (ff.stderr.read() if ff.stderr else b"").decode(errors="replace")[-2000:])
+        if time.monotonic() > deadline:
+            node.kill()
+            ff.kill()
+            raise RuntimeError("render timed out")
+        time.sleep(0.25)
     th.join(timeout=5)
     try:
         _, ff_err = ff.communicate(timeout=300)

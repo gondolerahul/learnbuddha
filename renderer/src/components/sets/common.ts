@@ -92,7 +92,9 @@ export function drawSetLabels(
     const target = world(f, place.at);
     const props = { text: String(L.text ?? place.text), x: lx, y: ly, target, size: L.size ?? "sm", maxWidth: 220 };
     // a label the camera would crop bows out until the shot shows it whole again
-    const vis = visibleShare(env, el, Label.bounds(env, props, el));
+    const lr = Label.bounds(env, props, el);
+    let vis = visibleShare(env, el, lr);
+    if (vis > 0 && lr && onPinnedText(env, el, lr, absT)) vis = 0; // never print over a pinned heading
     const ph: Phase = { local, k: clamp(local / 0.9), dur: 0.9, alpha: alpha * fadeOut * clamp((vis - 0.96) / 0.04) };
     if (ph.alpha > 0.01) Label.draw(env, props, ph, { ...el, id: `${el.id}.label${i}` });
   }
@@ -156,4 +158,26 @@ export function visibleShare(env: Env, el: SceneElement, r: Rect | null): number
   const ix = Math.max(0, Math.min(x0 + w, W - m) - Math.max(x0, m));
   const iy = Math.max(0, Math.min(y0 + h, H - m) - Math.max(y0, m));
   return (ix * iy) / Math.max(1, w * h);
+}
+
+/** Whether a box (logical coordinates, under the current camera) would land on pinned text visible at absT. */
+export function onPinnedText(env: Env, el: SceneElement, r: Rect, absT: number): boolean {
+  const cam = (env as any).cam;
+  const W = env.tokens.canvas.width, H = env.tokens.canvas.height;
+  let box = r;
+  if (cam) {
+    const depth = num(el.props?.depth, 0);
+    const par = 1 + depth * 0.35, zf = 1 + (cam.zoom - 1) * (1 + depth * 0.6);
+    const ox = W / 2 + (cam.x - W / 2) * par, oy = H / 2 + (cam.y - H / 2) * par;
+    box = { x: (r.x - ox) * zf + W / 2, y: (r.y - oy) * zf + H / 2, w: r.w * zf, h: r.h * zf };
+  }
+  for (const e of env.spec.elements) {
+    if (!e.fixed || e === el || !["Heading", "Text", "Callout", "TitleCard"].includes(e.type)) continue;
+    if (absT < e.at || (typeof e.until === "number" && absT > e.until + 0.35)) continue;
+    const b = env.boundsOf(e.id);
+    if (!b) continue;
+    const ix = Math.min(box.x + box.w, b.x + b.w) - Math.max(box.x, b.x), iy = Math.min(box.y + box.h, b.y + b.h) - Math.max(box.y, b.y);
+    if (ix > 4 && iy > 4) return true;
+  }
+  return false;
 }

@@ -542,7 +542,13 @@ function drawSceneBody(ctx: Ctx, env: Env, spec: SceneSpec, tReal: number, o: Re
   if (hold > 0) t = Math.floor(t * hold + 1e-6) / hold; // animated on twos/threes; the camera above keeps every frame
   (env as any).cam = env.depth === 0 ? cam : null; // sets use it to keep their own labels out of the frame edge
   // covers (transitions) go over everything else, whatever order they were written in
-  const ordered = [...spec.elements.filter((e) => e.type !== "Transition"), ...spec.elements.filter((e) => e.type === "Transition")];
+  // pinned text (a heading) sits above the pictures the camera moves under it; covers go over everything
+  const pinned = (e: SceneElement) => !!e.fixed && TEXTY.has(e.type);
+  const ordered = [
+    ...spec.elements.filter((e) => e.type !== "Transition" && !pinned(e)),
+    ...spec.elements.filter((e) => e.type !== "Transition" && pinned(e)),
+    ...spec.elements.filter((e) => e.type === "Transition"),
+  ];
   for (const el of ordered) {
     const comp = COMPONENTS[el.type];
     if (!comp) {

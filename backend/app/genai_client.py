@@ -32,8 +32,39 @@ def location_for(purpose: Purpose) -> str:
     return s.google_cloud_location
 
 
-@lru_cache(maxsize=8)
+def _adc_stamp() -> float:
+    """When the Application Default Credentials file last changed (0 when absent). A new `gcloud auth
+    application-default login` rewrites it, and the clients below are rebuilt so they pick the new sign-in up without
+    restarting the server (a client keeps the refresh token it was created with)."""
+    path = get_settings().google_application_credentials
+    if not path:
+        try:
+            from google.auth import _cloud_sdk
+
+            path = _cloud_sdk.get_application_default_credentials_path()
+        except Exception:
+            return 0.0
+    try:
+        import os
+
+        return os.path.getmtime(path)
+    except OSError:
+        return 0.0
+
+
 def client(purpose: Purpose = "brain"):
+    return _client(purpose, _adc_stamp())
+
+
+def _cache_clear() -> None:
+    _client.cache_clear()
+
+
+client.cache_clear = _cache_clear  # type: ignore[attr-defined]  # callers (and tests) reset the clients this way
+
+
+@lru_cache(maxsize=8)
+def _client(purpose: Purpose, _stamp: float):
     from google import genai
 
     s = get_settings()

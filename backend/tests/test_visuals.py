@@ -234,3 +234,16 @@ def test_every_style_draws_the_reference_scenes(tmp_path):
             assert out.returncode == 0, out.stderr
             issues = [i for i in json.loads(out.stdout)["issues"] if "draw failed" in i["message"] or "unknown" in i["message"]]
             assert issues == [], (k, g.get("kit"), issues)
+
+
+def test_every_music_bed_runs_in_ffmpeg():
+    # the bed sits inside a `-f lavfi` input, where a comma ends the filter and ffmpeg exits at once
+    from app import media
+
+    s = get_settings()
+    for pal in list(media.BEDS) + [""]:
+        expr = media.bed_expr(0.08, pal)
+        assert "," not in expr, pal
+        out = subprocess.run([s.ffmpeg_bin, "-v", "error", "-f", "lavfi", "-i", f"aevalsrc={expr}:s=48000:c=stereo:d=0.5", "-f", "null", "-"],
+                             capture_output=True, text=True, timeout=60)
+        assert out.returncode == 0, (pal, out.stderr[-300:])
